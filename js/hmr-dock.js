@@ -7,14 +7,14 @@
      data-design="#btn,.btn2"    CSS selector(s) of the site's own Design button (placed bottom left, round)
      data-design-panel="#panel"  CSS selector(s) of the site's Design panel (opens above the button, bottom left)
      data-sound="1"              the site already has sound, so bubbles may pop with a tiny sound
-   Also here: Back and Forward buttons beside Funsies, Feedback ("Do us a big favor") and "I'm lost" with voice typing,
+   Also here: Back and Forward buttons beside Funsies, and Speak here (a round mic button right of Funsies: say anything, it transcribes, it is sent as kind "speak"), Feedback ("Do us a big favor") and "I'm lost" with voice typing,
    a select-text menu (highlight, email, share, feedback), global Design options (pointer, letter animation, genre),
    HMRDock.send(payload) (web3forms, falling back to the visitor's email app), forms marked data-hmr-anon-form,
    and Microsoft Clarity click tracking (project ziagxt1es9, loaded once if the page has not loaded it).
    Storage is always inside try/catch. Each reaction is also sent to Clarity as a custom event. */
 (function () {
   'use strict';
-  var FORM_KEY = '';   // web3forms access key; also read from window.HMR_FORM_KEY. Empty means Send falls back to the visitor's email app.
+  var FORM_KEY = '436d16c6-bfff-4931-aace-95f12a6726ad';   // web3forms access key; also read from window.HMR_FORM_KEY. Empty means Send falls back to the visitor's email app.
   if (window.HMRDock) return;
   if (window.name === 'hmr-embed') return;   // inside the Funsies play overlay: no dock in the dock
   var script = document.currentScript, D = (script && script.dataset) || {};
@@ -182,7 +182,7 @@
   }
   function insideDock(t) {
     if (!t || !t.closest) return false;
-    if (t.closest('.hmr-dock,.hmr-rxp,.hmr-mark,.hmr-fzm,.hmr-pov,.hmr-again,.hmr-fbp,.hmr-hlm,.hmr-dx,.hmr-toast')) return true;
+    if (t.closest('.hmr-dock,.hmr-rxp,.hmr-mark,.hmr-fzm,.hmr-pov,.hmr-again,.hmr-fbp,.hmr-spk,.hmr-hlm,.hmr-dx,.hmr-toast')) return true;
     try { if (ds && t.closest(ds)) return true; if (ps && t.closest(ps)) return true; } catch (e) { }
     return false;
   }
@@ -228,7 +228,7 @@
   }
   function openRx() {
     if (!panel) buildPanel();
-    stopFunsies(true); closeFz(false); closeSheet(false); hideHlm();
+    stopFunsies(true); closeFz(false); closeSheet(false); closeSpeak(false); hideHlm();
     panel.hidden = false; rxBtn.setAttribute('aria-expanded', 'true');
     var tip = panel.querySelector('#hmr-rxtip');
     if (lsGet(TIPKEY) !== '1' && !tipShown) { tip.hidden = false; tipShown = true; } else tip.hidden = true;
@@ -331,7 +331,7 @@
     var all = doc.body.querySelectorAll('h1,h2,h3,h4,h5,h6,p,li,img,svg,button,a,input,textarea,label,figure,td,th,summary,code,pre,blockquote,span,b,strong,em,canvas,video,small,dt,dd,div,select');
     for (var i = 0; i < all.length; i++) {
       var e = all[i];
-      if (e.closest('[data-hmr-dock],.hmr-rxp,.hmr-fzcanvas,.hmr-mark,.hmr-fzm,.hmr-pov,.hmr-again,.hmr-fbp,.hmr-hlm,.hmr-dx,.hmr-toast,.hmr-sp') || (e.namespaceURI && e.namespaceURI.indexOf('svg') >= 0 && e.tagName.toLowerCase() !== 'svg')) continue;
+      if (e.closest('[data-hmr-dock],.hmr-rxp,.hmr-fzcanvas,.hmr-mark,.hmr-fzm,.hmr-pov,.hmr-again,.hmr-fbp,.hmr-spk,.hmr-hlm,.hmr-dx,.hmr-toast,.hmr-sp') || (e.namespaceURI && e.namespaceURI.indexOf('svg') >= 0 && e.tagName.toLowerCase() !== 'svg')) continue;
       var tag = e.tagName, media = /^(IMG|svg|CANVAS|VIDEO|BUTTON|INPUT|TEXTAREA|SELECT)$/i.test(tag);
       if (!media) { var leaf = true; for (var k = 0; k < e.children.length; k++) if (!LEAFOK.test(e.children[k].tagName)) { leaf = false; break; } if (!leaf) continue; if (!(e.textContent || '').trim()) continue; }
       var r = e.getBoundingClientRect();
@@ -1119,7 +1119,7 @@
     if (best) { best.focus(); try { best.scrollIntoView({ block: 'nearest' }); } catch (e2) { } }
   }
   function openFz() {
-    stopFunsies(true); hideAgain(); if (panel && !panel.hidden) closeRx(false); closePlay(false); closeSheet(false); hideHlm();
+    stopFunsies(true); hideAgain(); if (panel && !panel.hidden) closeRx(false); closePlay(false); closeSheet(false); closeSpeak(false); hideHlm();
     buildMenu(); fzm.hidden = false; fzBtn.setAttribute('aria-expanded', 'true');
     doc.addEventListener('pointerdown', outside, true);
     var f = fzm.querySelector('.fb,.card'); if (f) { try { f.focus({ preventScroll: true }); } catch (e) { f.focus(); } }
@@ -1173,7 +1173,7 @@
   function jset(k, v) { return lsSet(k, JSON.stringify(v)); }
   function ldel(k) { try { localStorage.removeItem(k); } catch (e) { } }
   function formKey() { return window.HMR_FORM_KEY || FORM_KEY || ''; }
-  var BAD = '[data-hmr-dock],.hmr-rxp,.hmr-fzm,.hmr-fbp,.hmr-hlm,.hmr-pov,.hmr-dx,.hmr-toast,textarea,input,select,script,style,[contenteditable="true"]';
+  var BAD = '[data-hmr-dock],.hmr-rxp,.hmr-fzm,.hmr-fbp,.hmr-spk,.hmr-hlm,.hmr-pov,.hmr-dx,.hmr-toast,textarea,input,select,script,style,[contenteditable="true"]';
   function badNode(a) { try { if (a && a.closest) { if (a.closest(BAD)) return true; if (ps && a.closest(ps)) return true; if (ds && a.closest(ds)) return true; } } catch (e) { } return false; }
 
   // ---- Microsoft Clarity (click tracking), once
@@ -1197,8 +1197,8 @@
   }
   function mailParts(p) {
     p = p || {}; var kind = p.kind || 'feedback', msg = String(p.message || '').trim(), details = p.details ? JSON.stringify(p.details) : '';
-    var subject = 'HMR site feedback: ' + CFG.site;
-    var body = msg + '\n\n--\nPage: ' + location.href + '\nKind: ' + kind + (p.email ? '\nReply to: ' + p.email : '') + (details ? '\nDetails: ' + details : '');
+    var subject = kind === 'speak' ? 'HMR site, Speak here: ' + CFG.site : 'HMR site feedback: ' + CFG.site;
+    var body = msg + '\n\n--\nSite: ' + CFG.site + '\nPage: ' + location.href + '\nKind: ' + kind + (p.email ? '\nReply to: ' + p.email : '') + (details ? '\nDetails: ' + details : '');
     return { subject: subject, kind: kind, msg: msg, details: details, body: body };
   }
   function mailSelf(p, to) {
@@ -1208,12 +1208,12 @@
   }
   function send(p) {
     p = p || {};
-    var m = mailParts(p), fields = { subject: m.subject, from_name: 'HMR visitor (' + CFG.site + ')', site: CFG.site, page: location.href, kind: m.kind, message: m.msg };
+    var m = mailParts(p), fields = { subject: p.subject || m.subject, from_name: 'HMR site', site: CFG.site, page: location.href, kind: m.kind, message: m.body };
     if (p.email) { fields.email = p.email; fields.replyto = p.email; }
     if (m.details) fields.details = m.details;
     var key = formKey();
     if (!key || !window.fetch) { var r0 = mailSelf(p); r0.reason = key ? 'no-fetch' : 'no-key'; return Promise.resolve(r0); }
-    fields.access_key = key;
+    fields.access_key = key; fields.botcheck = '';
     var ctl = window.AbortController ? new AbortController() : null, t = setTimeout(function () { try { if (ctl) ctl.abort(); } catch (e) { } }, 15000);
     return fetch('https://api.web3forms.com/submit', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: JSON.stringify(fields), signal: ctl ? ctl.signal : undefined })
       .then(function (r) { return r.json().then(function (j) { return { ok: r.ok && !(j && j.success === false) }; }, function () { return { ok: r.ok }; }); })
@@ -1238,21 +1238,23 @@
   // ---- styles for the new parts
   var PILL = 'pointer-events:auto;position:fixed;bottom:' + BASE + ';margin:0 0 4px;height:46px;border:2px solid #fff;border-radius:999px;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;padding:0 14px;font-size:14px;font-weight:800;letter-spacing:.01em;white-space:nowrap;box-shadow:0 6px 20px rgba(0,0,0,.38);-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:transform .25s,opacity .2s;transform:none';
   styleEl.textContent += [
-    '.hmr-dock{--hmr-fw:116px;--hmr-nw:56px}',
-    '@media (max-width:480px){.hmr-dock{--hmr-fw:92px;--hmr-nw:48px}}@media (max-width:340px){.hmr-dock{--hmr-fw:84px;--hmr-nw:42px}}',
-    '.hmr-fzbtn{width:var(--hmr-fw)!important;margin-left:calc(var(--hmr-fw) / -2)!important}',
-    '.hmr-nv,.hmr-fbbtn,.hmr-lostbtn{' + PILL + '}',
+    '.hmr-dock{--hmr-fw:116px;--hmr-nw:56px;--hmr-sw:46px;--hmr-g:6px;--hmr-sh:calc((var(--hmr-g) + var(--hmr-sw)) / -2)}',
+    '@media (max-width:480px){.hmr-dock{--hmr-fw:84px;--hmr-nw:44px;--hmr-sw:44px;--hmr-g:4px}}@media (max-width:340px){.hmr-dock{--hmr-fw:66px;--hmr-nw:36px;--hmr-sw:36px;--hmr-g:3px}.hmr-fzbtn{font-size:13px!important}}',
+    '.hmr-fzbtn{width:var(--hmr-fw)!important;margin-left:calc(var(--hmr-fw) / -2 + var(--hmr-sh))!important}',
+    '.hmr-nv,.hmr-fbbtn,.hmr-lostbtn,.hmr-spbtn{' + PILL + '}',
     '.hmr-nv{left:50%;width:var(--hmr-nw);padding:0}.hmr-nv svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}',
-    '.hmr-nv.back{margin-left:calc(var(--hmr-fw) / -2 - 6px - var(--hmr-nw));background:linear-gradient(135deg,#06b6d4,#3b82f6)}',
-    '.hmr-nv.fwd{margin-left:calc(var(--hmr-fw) / 2 + 6px);background:linear-gradient(135deg,#8b5cf6,#06b6d4)}',
+    '.hmr-nv.back{margin-left:calc(var(--hmr-fw) / -2 - var(--hmr-g) - var(--hmr-nw) + var(--hmr-sh));background:linear-gradient(135deg,#06b6d4,#3b82f6)}',
+    '.hmr-nv.fwd{margin-left:calc(var(--hmr-fw) / 2 + var(--hmr-g) + var(--hmr-sw) + var(--hmr-g) + var(--hmr-sh));background:linear-gradient(135deg,#8b5cf6,#06b6d4)}',
     '.hmr-nv.off{opacity:.45;filter:grayscale(.7);cursor:default}',
     '.hmr-fbbtn{left:calc(' + LEFT + ' + 62px);background:linear-gradient(135deg,#10b981,#0ea5e9)}',
     '.hmr-lostbtn{right:calc(' + RIGHT + ' + 62px);background:linear-gradient(135deg,#f97316,#ef4444)}',
+    '.hmr-spbtn{left:50%;width:var(--hmr-sw);height:var(--hmr-sw);padding:0;margin-left:calc(var(--hmr-fw) / 2 + var(--hmr-g) + var(--hmr-sh));background:linear-gradient(135deg,#ec4899,#f59e0b 55%,#22c55e)}.hmr-spbtn svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}',
+    '.hmr-spbtn:hover{transform:rotate(-3deg) scale(1.08)}.hmr-spbtn:active{transform:scale(.94)}.hmr-spbtn[aria-expanded="true"]{background:linear-gradient(135deg,#dc2626,#7f1d1d)}',
     '.hmr-nv:not(.off):hover,.hmr-fbbtn:hover,.hmr-lostbtn:hover{transform:rotate(-3deg) scale(1.06)}.hmr-nv:not(.off):active,.hmr-fbbtn:active,.hmr-lostbtn:active{transform:scale(.95)}',
     '.hmr-fbbtn .e,.hmr-lostbtn .e{font-size:17px;line-height:1}',
     '@media (max-width:720px){.hmr-fbbtn{left:' + LEFT + ';bottom:calc(' + BASE + ' + 64px);margin-bottom:0}.hmr-lostbtn{right:' + RIGHT + ';bottom:calc(' + BASE + ' + 64px);margin-bottom:0}}',
     '@media (max-width:720px){.hmr-rxp{bottom:calc(' + BASE + ' + 118px);max-height:min(46vh,calc(100vh - 170px))}' + (ps ? ps + '{bottom:calc(' + BASE + ' + 118px)!important;max-height:calc(100vh - 170px)!important}' : '') + '}',
-    '@media (prefers-reduced-motion:reduce){.hmr-nv,.hmr-fbbtn,.hmr-lostbtn{transition:none}.hmr-nv:hover,.hmr-fbbtn:hover,.hmr-lostbtn:hover{transform:none!important}}',
+    '@media (prefers-reduced-motion:reduce){.hmr-nv,.hmr-fbbtn,.hmr-lostbtn,.hmr-spbtn{transition:none}.hmr-nv:hover,.hmr-fbbtn:hover,.hmr-lostbtn:hover,.hmr-spbtn:hover{transform:none!important}}',
     '.hmr-nv:focus-visible,.hmr-fbbtn:focus-visible,.hmr-lostbtn:focus-visible,.hmr-fbp button:focus-visible,.hmr-fbp textarea:focus-visible,.hmr-fbp input:focus-visible,.hmr-hlm button:focus-visible,.hmr-dx button:focus-visible,.hmr-dx textarea:focus-visible{outline:3px solid #f59e0b;outline-offset:2px}',
     // sheet
     '.hmr-fbp{position:fixed;left:50%;bottom:calc(' + BASE + ' + 64px);transform:translateX(-50%);z-index:99993;width:min(480px,calc(100vw - 24px));max-height:min(86vh,calc(100vh - 110px));overflow:auto;overscroll-behavior:contain;background:#fff;color:#111;border:2px solid #111;border-radius:16px;padding:12px;box-shadow:0 14px 44px rgba(0,0,0,.45);font:500 13px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;text-align:left;text-transform:none;letter-spacing:0}',
@@ -1273,6 +1275,23 @@
     '.hmr-fbp .go,.hmr-dx .go{min-height:46px;border:2px solid #fff;border-radius:12px;color:#fff;font-size:14px;font-weight:800;cursor:pointer;padding:6px 8px;line-height:1.15;box-shadow:0 3px 10px rgba(0,0,0,.25)}',
     '.hmr-fbp .go.m{background:linear-gradient(135deg,#3b82f6,#8b5cf6)}.hmr-fbp .go.a{background:linear-gradient(135deg,#10b981,#0ea5e9)}',
     '@media (max-width:600px){.hmr-fbp{left:' + LEFT + ';right:' + RIGHT + ';transform:none;width:auto}.hmr-fbp .two{grid-template-columns:1fr}}',
+    // speak popup
+    '.hmr-spk{position:fixed;left:50%;bottom:calc(' + BASE + ' + 64px);transform:translateX(-50%);z-index:99993;width:min(400px,calc(100vw - 24px));max-height:min(88vh,calc(100vh - 110px));overflow:auto;overscroll-behavior:contain;background:#fff;color:#111;border:2px solid #111;border-radius:16px;padding:12px;box-shadow:0 14px 44px rgba(0,0,0,.45);font:500 13px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;text-align:left;text-transform:none;letter-spacing:0}',
+    '.hmr-spk[hidden]{display:none}.hmr-spk *{box-sizing:border-box;font-family:inherit}',
+    '.hmr-spk .hd{display:flex;align-items:center;justify-content:space-between;gap:8px;font-weight:800;font-size:18px;margin:0 0 2px}',
+    '.hmr-spk .x{min-width:34px;min-height:34px;border:1px solid #bbb;background:#f6f6f6;color:#111;border-radius:8px;font-size:20px;line-height:1;cursor:pointer;padding:0 8px}',
+    '.hmr-spk p{margin:0 0 6px}.hmr-spk .sub{color:#222;font-weight:600;text-align:center}',
+    '.hmr-spk .hmr-mic{width:92px;height:92px;min-height:0;margin:4px auto 6px;border-radius:50%;flex-direction:column;gap:2px;font-size:12px;padding:0;background:linear-gradient(135deg,#ec4899,#f59e0b 55%,#22c55e)}',
+    '.hmr-spk .hmr-mic .e{font-size:34px}.hmr-spk .hmr-mic.rec{background:linear-gradient(135deg,#dc2626,#7f1d1d)}',
+    '.hmr-spk .st{min-height:1.4em;font-size:12.5px;color:#333;margin:2px 0 4px;text-align:center}',
+    '.hmr-spk label{display:block;font-weight:700;margin:6px 0 3px}',
+    '.hmr-spk textarea,.hmr-spk input[type=email]{width:100%;border:2px solid #9aa4b5;border-radius:10px;padding:8px 10px;font-size:15px;line-height:1.35;color:#111;background:#fff}',
+    '.hmr-spk textarea{min-height:96px;resize:vertical}',
+    '.hmr-spk .go{width:100%;min-height:46px;margin-top:8px;border:2px solid #fff;border-radius:12px;color:#fff;font-size:15px;font-weight:800;cursor:pointer;background:linear-gradient(135deg,#3b82f6,#8b5cf6);box-shadow:0 3px 10px rgba(0,0,0,.25)}',
+    '.hmr-spk .go[disabled]{opacity:.6;cursor:wait}',
+    '.hmr-spk button:focus-visible,.hmr-spk textarea:focus-visible,.hmr-spk input:focus-visible{outline:3px solid #f59e0b;outline-offset:2px}',
+    '@media (max-width:720px){.hmr-spk{bottom:calc(' + BASE + ' + 118px);max-height:min(88vh,calc(100vh - 170px))}}',
+    '@media (max-width:600px){.hmr-spk{left:' + LEFT + ';right:' + RIGHT + ';transform:none;width:auto}}',
     // highlight menu + marks
     'mark.hmr-hl{background:#ffe066;color:#111;border-radius:2px;padding:0;box-shadow:0 0 0 1px rgba(245,158,11,.5)}',
     '.hmr-hlm{position:fixed;z-index:99994;display:flex;flex-wrap:wrap;gap:4px;max-width:calc(100vw - 16px);background:#111;border:2px solid #fff;border-radius:12px;padding:5px;box-shadow:0 8px 26px rgba(0,0,0,.45);font:700 13px/1 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}',
@@ -1308,12 +1327,14 @@
   var ARR = function (d) { return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="' + d + '"/></svg>'; };
   var backBtn = mkPill('hmr-nv back', 'hmr-back', 'Go back', ARR('M15 5l-7 7 7 7'));
   var fwdBtn = mkPill('hmr-nv fwd', 'hmr-fwd', 'Go forward', ARR('M9 5l7 7-7 7'));
+  var spBtn = mkPill('hmr-spbtn', 'hmr-speak', 'Speak here: say anything and someone will listen', '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"/></svg>');
+  spBtn.title = 'Speak here'; spBtn.setAttribute('aria-haspopup', 'dialog'); spBtn.setAttribute('aria-expanded', 'false'); spBtn.setAttribute('aria-controls', 'hmr-spk');
   var fbBtn = mkPill('hmr-fbbtn', 'hmr-feedback', 'Do us a big favor: send feedback', '<span class="e" aria-hidden="true">💬</span><span>Feedback</span>');
   var lostBtn = mkPill('hmr-lostbtn', 'hmr-lost', 'I\'m lost: tell us where you are stuck', '<span class="e" aria-hidden="true">🧭</span><span>I\'m lost</span>');
   backBtn.title = 'Back'; fwdBtn.title = 'Forward'; fbBtn.title = 'Do us a big favor'; lostBtn.title = 'I\'m lost';
   [fbBtn, lostBtn].forEach(function (b) { b.setAttribute('aria-haspopup', 'dialog'); b.setAttribute('aria-expanded', 'false'); b.setAttribute('aria-controls', 'hmr-fbp'); });
   dock.textContent = '';
-  [fbBtn, backBtn, fzBtn, fwdBtn, lostBtn, rxBtn, again].forEach(function (b) { dock.appendChild(b); });
+  [fbBtn, backBtn, fzBtn, spBtn, fwdBtn, lostBtn, rxBtn, again].forEach(function (b) { dock.appendChild(b); });
   function navState() { var off = (history.length < 2); [backBtn, fwdBtn].forEach(function (b) { b.classList.toggle('off', off); b.setAttribute('aria-disabled', off ? 'true' : 'false'); }); }
   backBtn.addEventListener('click', function () { if (history.length < 2) return; try { history.back(); } catch (e) { } });
   fwdBtn.addEventListener('click', function () { if (history.length < 2) return; try { history.forward(); } catch (e) { } });
@@ -1449,16 +1470,69 @@
   lostBtn.addEventListener('click', function () { if (fb && !fb.el.hidden && fbMode === 'lost') closeSheet(true); else openSheet('lost'); });
   function closeOthers(keep) {
     if (keep !== 'sheet') closeSheet(false);
+    if (keep !== 'sp') closeSpeak(false);
     if (keep !== 'hl') hideHlm();
     if (keep !== 'fz') { try { closeFz(false); } catch (e) { } }
     if (keep !== 'rx') { try { if (panel && !panel.hidden) closeRx(false); } catch (e) { } }
   }
 
+  // ---- Speak here: a mic popup. Say anything; it transcribes; Send mails it as kind "speak" (anonymous unless an email is added).
+  var sp = null, SPKEY = 'hmr-draft-v1:speak';
+  function saveSpeak() { if (sp) jset(SPKEY, { t: sp.ta.value, e: sp.em.value }); }
+  function spKey(e) {
+    if (e.key === 'Escape') { e.stopPropagation(); closeSpeak(true); return; }
+    if (e.key === 'Tab' && sp && !sp.el.hidden) {
+      var f = [].filter.call(sp.el.querySelectorAll('button,textarea,input'), function (b) { return !b.disabled && b.offsetParent !== null; }); if (!f.length) return;
+      var i = f.indexOf(doc.activeElement);
+      if (e.shiftKey && i <= 0) { f[f.length - 1].focus(); e.preventDefault(); } else if (!e.shiftKey && (i === f.length - 1 || i < 0)) { f[0].focus(); e.preventDefault(); }
+    }
+  }
+  function buildSpeak() {
+    sp = {}; var s = el('div', 'hmr-spk'); s.id = 'hmr-spk'; s.hidden = true; s.setAttribute('role', 'dialog'); s.setAttribute('aria-label', 'Speak here'); sp.el = s;
+    var hd = el('div', 'hd'); hd.appendChild(el('span', '', 'Speak here')); var x = el('button', 'x', '×'); x.type = 'button'; x.setAttribute('aria-label', 'Close Speak here'); x.addEventListener('click', function () { closeSpeak(true); }); hd.appendChild(x); s.appendChild(hd);
+    s.appendChild(el('p', 'sub', 'Speak here and someone will listen.'));
+    sp.mic = el('button', 'hmr-mic'); sp.mic.type = 'button'; s.appendChild(sp.mic);
+    sp.mst = el('p', 'st'); sp.mst.setAttribute('role', 'status'); sp.mst.setAttribute('aria-live', 'polite'); s.appendChild(sp.mst);
+    var l1 = el('label', '', SR ? 'Your words (you can edit them)' : 'Type here'); l1.setAttribute('for', 'hmr-sp-text'); s.appendChild(l1);
+    sp.ta = el('textarea'); sp.ta.id = 'hmr-sp-text'; sp.ta.rows = 4; sp.ta.setAttribute('autocomplete', 'off'); if (!SR) sp.ta.placeholder = 'type here'; s.appendChild(sp.ta);
+    var l2 = el('label', '', 'Your email, only if you want a reply (optional)'); l2.setAttribute('for', 'hmr-sp-email'); s.appendChild(l2);
+    sp.em = el('input'); sp.em.type = 'email'; sp.em.id = 'hmr-sp-email'; sp.em.setAttribute('autocomplete', 'email'); s.appendChild(sp.em);
+    sp.go = el('button', 'go', 'Send'); sp.go.type = 'button'; s.appendChild(sp.go);
+    sp.st = el('p', 'st'); sp.st.setAttribute('role', 'status'); sp.st.setAttribute('aria-live', 'polite'); s.appendChild(sp.st);
+    if (SR) sp.micApi = makeMic(sp.ta, sp.mic, sp.mst, saveSpeak);
+    else { sp.mic.hidden = true; sp.mst.textContent = 'Voice typing is not available in this browser. Type here instead.'; sp.micApi = { stop: function () { } }; }
+    sp.ta.addEventListener('input', saveSpeak); sp.em.addEventListener('input', saveSpeak); s.addEventListener('keydown', spKey);
+    sp.go.addEventListener('click', function () {
+      var txt = sp.ta.value.trim();
+      if (!txt) { sp.st.textContent = 'Say or type a few words first.'; try { sp.ta.focus(); } catch (e) { } return; }
+      saveSpeak(); sp.micApi.stop(); sp.st.textContent = 'Sending...'; sp.go.disabled = true;
+      send({ kind: 'speak', message: txt, email: sp.em.value.trim() }).then(function (r) {
+        sp.go.disabled = false;
+        if (r.ok) { sp.ta.value = ''; ldel(SPKEY); sp.st.textContent = 'Sent. Thank you so much.'; }
+        else sp.st.textContent = MAIL_LINE;
+      });
+    });
+    doc.body.appendChild(s);
+  }
+  function openSpeak() {
+    closeOthers('sp'); stopFunsies(true); closePlay(false);
+    if (!sp) buildSpeak();
+    var d = jget(SPKEY, {}); sp.ta.value = d.t || ''; sp.em.value = d.e || ''; sp.st.textContent = d.t ? 'Your unsent words from last time are here.' : '';
+    sp.el.hidden = false; spBtn.setAttribute('aria-expanded', 'true');
+    if (SR) { sp.mic.click(); } else { try { sp.ta.focus({ preventScroll: true }); } catch (e) { sp.ta.focus(); } }
+  }
+  function closeSpeak(back) {
+    if (!sp || sp.el.hidden) return; if (sp.micApi) sp.micApi.stop(); saveSpeak(); sp.el.hidden = true; spBtn.setAttribute('aria-expanded', 'false');
+    if (back) { try { spBtn.focus({ preventScroll: true }); } catch (e) { spBtn.focus(); } }
+  }
+  spBtn.addEventListener('click', function () { if (sp && !sp.el.hidden) closeSpeak(true); else openSpeak(); });
+  doc.addEventListener('keydown', function (e) { if (e.key === 'Escape' && sp && !sp.el.hidden) closeSpeak(true); });
+
   // ---- highlight + caret menu
   var HLKEY = 'hmr-hl-v1:' + location.pathname, hlm = null, hlData = null, mouseDown = false, selT = 0;
   function hlHash(t, n) { var h = 5381, s = t + '|' + n; for (var i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0; return h.toString(36); }
   function flatText() {
-    var tw = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT, { acceptNode: function (n) { var p = n.parentNode; if (!p || /^(SCRIPT|STYLE|NOSCRIPT|TEXTAREA)$/.test(p.nodeName)) return NodeFilter.FILTER_REJECT; if (p.closest && p.closest('[data-hmr-dock],.hmr-rxp,.hmr-fzm,.hmr-fbp,.hmr-hlm,.hmr-pov,.hmr-dx,.hmr-toast')) return NodeFilter.FILTER_REJECT; return NodeFilter.FILTER_ACCEPT; } });
+    var tw = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT, { acceptNode: function (n) { var p = n.parentNode; if (!p || /^(SCRIPT|STYLE|NOSCRIPT|TEXTAREA)$/.test(p.nodeName)) return NodeFilter.FILTER_REJECT; if (p.closest && p.closest('[data-hmr-dock],.hmr-rxp,.hmr-fzm,.hmr-fbp,.hmr-spk,.hmr-hlm,.hmr-pov,.hmr-dx,.hmr-toast')) return NodeFilter.FILTER_REJECT; return NodeFilter.FILTER_ACCEPT; } });
     var s = '', map = [], last = ' ', n;
     while ((n = tw.nextNode())) {
       var v = n.nodeValue;
@@ -1477,7 +1551,7 @@
     if (r.commonAncestorContainer.nodeType === 3) nodes.push(r.commonAncestorContainer);
     else while ((n = tw.nextNode())) { if (r.intersectsNode(n)) nodes.push(n); }
     nodes.forEach(function (nd) {
-      if (nd.parentNode && nd.parentNode.closest && nd.parentNode.closest('[data-hmr-dock],.hmr-fbp,.hmr-hlm,.hmr-dx')) return;
+      if (nd.parentNode && nd.parentNode.closest && nd.parentNode.closest('[data-hmr-dock],.hmr-fbp,.hmr-spk,.hmr-hlm,.hmr-dx')) return;
       var s = nd === r.startContainer ? r.startOffset : 0, e = nd === r.endContainer ? r.endOffset : nd.nodeValue.length;
       if (e <= s || !nd.nodeValue.slice(s, e).trim()) return;
       var mid = nd; if (s > 0) mid = nd.splitText(s); if (e - s < mid.nodeValue.length) mid.splitText(e - s);
@@ -1728,7 +1802,7 @@
     funsies: function (name) { if (effByName(name)) runEffect(name); },
     openFunsies: openFz, closeFunsies: function () { closeFz(true); }, play: function (id) { PLAY.forEach(function (p) { if (p.id === id) openPlay(p); }); }, closePlay: function () { closePlay(true); },
     stopFunsies: function () { stopFunsies(true); }, log: readLog, openReact: openRx, closeReact: function () { closeRx(true); },
-    send: send, mailto: mailSelf, openFeedback: function (o) { openSheet('feedback', o); }, openLost: function () { openSheet('lost'); }, closeFeedback: function () { closeSheet(true); },
+    send: send, mailto: mailSelf, openFeedback: function (o) { openSheet('feedback', o); }, openLost: function () { openSheet('lost'); }, closeFeedback: function () { closeSheet(true); }, openSpeak: openSpeak, closeSpeak: function () { closeSpeak(true); },
     highlights: hlList, clearHighlights: function () { hlList().forEach(function (h) { removeHighlight(h.id); }); }, design: function () { return JSON.parse(JSON.stringify(dx)); }, version: 3
   };
 })();
