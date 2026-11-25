@@ -1,6 +1,6 @@
 # workdash.life
 
-The work dashboard, clearly labeled Planned (early 2027). Nothing here is built. The story comes from https://claudebomb.com. Start with the personal dashboard at https://personaldash.life.
+The work dashboard, clearly labeled Planned (mid to late 2027). Nothing here is built. The story comes from https://claudebomb.com. Start with the personal dashboard at https://personaldash.life.
 
 Static site: `index.html`, `css/style.css`, `js/app.js`, `js/hmr-dock.js`, `favicon.svg`. No build step, no external fonts or CDNs.
 
