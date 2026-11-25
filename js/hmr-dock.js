@@ -1,4 +1,4 @@
-/* HMR dock v6.4: one shared bottom bar for all HMR sites.
+/* HMR dock v6.4.1: one shared bottom bar for all HMR sites.
    v6.4 Design: a seeded generator replaces the fixed list. A design is one integer (the seed): a mulberry32 PRNG picks family (3D or Clean), layout (9), palette (32, all checked to WCAG AA),
      type pairing (14), card style (6), background (5 animated canvas for 3D, 5 static for Clean), density (3), radius (5), accent usage (3). Chips pick 3D, Clean, or All; Shuffle, Back, Forward;
      Save as my view (localStorage per site, applied on the next visit), ?design=<seed> share links, and a per-site HMR default (native page; data-hmr-default overrides).
@@ -2087,23 +2087,49 @@
   var T_HEAD = /^H[1-6]$/, T_BLK = /^(P|LI|BLOCKQUOTE|DD|DT|FIGCAPTION|SUMMARY|TD|TH|PRE|CAPTION|LEGEND)$/, T_SKIP = /^(SCRIPT|STYLE|NOSCRIPT|TEMPLATE|SVG|CANVAS|VIDEO|AUDIO|IFRAME|OBJECT|EMBED|IMG|PICTURE|INPUT|SELECT|TEXTAREA|OPTION|HEAD|LINK|META|MAP|DIALOG)$/i;
   var T_INL = /^(A|B|I|EM|STRONG|SPAN|BUTTON|CODE|SMALL|SUP|SUB|MARK|ABBR|U|S|BR|LABEL|TIME|CITE|Q|KBD|BDI|FONT|DEL|INS|VAR|WBR|NOBR)$/i, T_CARD = /(^|[\s_-])(card|tile|box|item|panel|idea|site|feature|post|entry|plan|tier|testimonial|step|stat)([\s_-]|$)/i;
   function escH(t) { return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  // v6.4.1: the rebuilt design carries only the page's real content. Skipped: navigation, menus, dialogs and pop-ups (role=dialog, aria-modal, fixed-position gates), progress widgets,
+  // skip links, tables of contents, anything hidden, aria-hidden or zero-size, and button-only rows (buttons are dropped; links are kept).
+  var JUNKSEL = 'nav,dialog,[role="navigation"],[role="dialog"],[role="alertdialog"],[role="menu"],[role="menubar"],[role="status"],[role="progressbar"],[role="tooltip"],[role="search"],[aria-modal="true"],[aria-live],[popover],[data-hmr]';
+  var JUNKCLS = /(^|[\s_-])(skip|skiplink|skip-link|sr-only|screen-reader-text|visually-hidden|toc|breadcrumbs?|menubtn|hmr-track|hmr-pop|hmr-label|modal|popup|pop-up|cookie|cookies|consent)([\s_-]|$)/i;
+  var SKIPTXT = /^\s*skip (to )?(the )?(main )?(content|navigation|nav)\s*$/i;
   function visNode(e) {
     try {
       if (e.hasAttribute('hidden') || e.getAttribute('aria-hidden') === 'true' || e.matches(XSEL)) return false;
-      var cs = getComputedStyle(e); return cs.display !== 'none' && cs.visibility !== 'hidden';
+      if (e !== doc.body && e.tagName.toUpperCase() !== 'MAIN') {
+        if (e.matches(JUNKSEL)) return false;
+        var kc = e.getAttribute('class'); if (kc && JUNKCLS.test(kc)) return false;
+        if (e.tagName.toUpperCase() === 'A' && SKIPTXT.test(e.textContent || '')) return false;
+      }
+      var cs = getComputedStyle(e); if (cs.display === 'none' || cs.visibility === 'hidden') return false;
+      if (e !== doc.body && cs.position === 'fixed') return false;
+      if (e !== doc.body && cs.display !== 'contents') { var r = e.getBoundingClientRect(); if (r.width <= 1 && r.height <= 1) return false; }
+      return true;
     } catch (x) { return true; }
+  }
+  // a table of contents: a block whose text is nearly all links, three or more, almost all of them to anchors on this page
+  function isTocLike(c) {
+    try {
+      var as = c.querySelectorAll('a[href]'); if (as.length < 3) return false;
+      var inpage = 0, atx = 0; for (var i = 0; i < as.length; i++) {
+        var h = as[i].getAttribute('href') || ''; if (h.charAt(0) === '#' && h.length > 1) inpage++;
+        else { try { var u = new URL(as[i].href, location.href); if (u.hash.length > 1 && u.origin === location.origin && u.pathname === location.pathname) inpage++; } catch (e) { } }
+        atx += (as[i].textContent || '').replace(/\s+/g, ' ').trim().length;
+      }
+      if (inpage < as.length * .8) return false;
+      var tot = (c.textContent || '').replace(/\s+/g, ' ').trim().length; return tot > 0 && atx >= tot * .75;
+    } catch (e) { return false; }
   }
   function inlHTML(n) {
     if (n.nodeType === 3) return escH(n.nodeValue.replace(/\s+/g, ' '));
     if (n.nodeType !== 1 || !visNode(n)) return '';
-    var t = n.tagName.toUpperCase(); if (t === 'BR') return '<br>'; if (T_SKIP.test(t)) return '';
+    var t = n.tagName.toUpperCase(); if (t === 'BR') return '<br>'; if (T_SKIP.test(t) || t === 'BUTTON' || n.getAttribute('role') === 'button') return '';
     var inner = ''; for (var k = n.firstChild; k; k = k.nextSibling) inner += inlHTML(k);
     if (!inner.replace(/&nbsp;|\s/g, '')) return inner;
     var dsp = ''; try { dsp = getComputedStyle(n).display; } catch (e) { }
     if (dsp && dsp !== 'inline' && dsp !== 'contents') inner = ' ' + inner + ' ';   // cells and flex items that sit side by side keep a space between them
     if (t === 'A') {
       var h = n.getAttribute('href'); if (!h || /^\s*javascript:/i.test(h)) return inner;
-      if (/^\s*skip (to )?(the )?(main )?(content|navigation)\s*$/i.test(plainOf(inner))) return '';
+      if (SKIPTXT.test(plainOf(inner))) return '';
       var u = h; try { u = n.href || h; } catch (e) { }
       return '<a href="' + escH(u) + '"' + (h.charAt(0) === '#' ? ' data-int="' + escH(h.slice(1)) + '"' : '') + (n.target === '_blank' ? ' target="_blank" rel="noopener"' : '') + '>' + inner + '</a>';
     }
@@ -2116,8 +2142,8 @@
   function plainOf(html) { return html.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/\s+/g, ' ').trim(); }
   function hasBlockKid(c) { for (var k = c.firstElementChild; k; k = k.nextElementSibling) if (!T_INL.test(k.tagName) && !T_SKIP.test(k.tagName)) return true; return false; }
   function extractPage() {
-    var items = [], count = 0, root0 = doc.body;
-    function emit(b) { if (count < 1600) { items.push(b); count++; } }
+    var items = [], count = 0, root0 = doc.body, titleEl = null, titlePlain = '', titleSeen = false;
+    function emit(b) { if (count >= 1600) return; if (b.t === 'p' && titlePlain && titleSeen && plainOf(b.h) === titlePlain) return; items.push(b); count++; }
     function isCardEl(c) {
       var tg = c.tagName.toUpperCase(); if (/^(ARTICLE|FIGURE|DETAILS)$/.test(tg)) return true;
       var cl = (c.getAttribute('class') || ''); if (c.hasAttribute('data-hmr-card') || (cl && T_CARD.test(cl))) return true; return false;
@@ -2129,7 +2155,8 @@
         if (c.nodeType === 3) { if (c.nodeValue.trim() || run) (run = run || []).push(c); continue; }
         if (c.nodeType !== 1 || !visNode(c)) continue;
         var tag = c.tagName.toUpperCase();
-        if (T_SKIP.test(tag)) continue;
+        if (T_SKIP.test(tag) || tag === 'BUTTON' || c === titleEl || c.getAttribute('role') === 'button') continue;
+        if (/^(UL|OL|DIV|SECTION|ASIDE|P|DL|HEADER|FOOTER)$/.test(tag) && isTocLike(c)) continue;
         if (T_HEAD.test(tag)) { flush(); var hh = inlHTML(c).trim(); if (plainOf(hh)) emit({ t: 'h', l: +tag.charAt(1), h: hh, id: c.id || '' }); continue; }
         if (T_BLK.test(tag) && !hasBlockKid(c)) { flush(); var ph = inlHTML(c).trim(); if (plainOf(ph)) emit({ t: tag === 'LI' ? 'li' : 'p', h: ph }); continue; }
         if (T_INL.test(tag) && !hasBlockKid(c)) { (run = run || []).push(c); continue; }
@@ -2143,6 +2170,16 @@
         if (inner.length > 1) emit({ t: 'card', b: inner, id: c.id || '' }); else if (inner.length) emit(inner[0]);
       } else walkKids(c, inCard);
     }
+    (function findTitle() {
+      var hd = doc.querySelector('header,[role="banner"]'); if (!hd) return;
+      var cs = hd.querySelectorAll('a.logo,a.brand,.logo,.brand,.site-title,.site-name,[class*="logo"],[class*="brand"],a[href="/"],a[href="index.html"],a[href="./"],a[href="#top"]');
+      for (var i = 0; i < cs.length; i++) {
+        var e = cs[i]; if (!visNode(e)) continue; var tx = (e.textContent || '').replace(/\s+/g, ' ').trim(); if (!tx || tx.length > 60 || /^(menu|close|open)$/i.test(tx)) continue;
+        var h = inlHTML(e).trim(); if (!plainOf(h)) continue;
+        if (e.tagName.toUpperCase() !== 'A' && !e.querySelector('a')) { /* plain text logo */ }
+        titleEl = e; titlePlain = plainOf(h); items.push({ t: 'p', h: h }); count++; titleSeen = true; return;
+      }
+    })();
     walkKids(root0, false);
     var words = 0; (function cnt(a) { a.forEach(function (b) { if (b.t === 'card') cnt(b.b); else words += plainOf(b.h).split(/\s+/).filter(Boolean).length; }); })(items);
     return { items: items, words: words };
@@ -2930,6 +2967,6 @@
     openFunsies: openFz, closeFunsies: function () { closeFz(true); }, play: function (id) { PLAY.forEach(function (p) { if (p.id === id) openPlay(p); }); }, closePlay: function () { closePlay(true); },
     stopFunsies: function () { stopFunsies(true); }, log: readLog, openReact: openRx, closeReact: function () { closeRx(true); },
     send: send, mailto: mailSelf, openFeedback: function (o) { openSheet('feedback', o); }, openLost: function () { openSheet('lost'); }, closeFeedback: function () { closeSheet(true); }, openSpeak: openSpeak, closeSpeak: function () { closeSpeak(true, true); },
-    highlights: hlList, clearHighlights: clearAllHighlights, design: function () { return JSON.parse(JSON.stringify(dx)); }, version: 6.4, design: { theme: function (s) { return genTheme(s); }, palettes: function () { return PALS; }, famOf: famOfSeed, seedIn: seedIn, show: function (s) { goTheme('g:' + s); }, hide: function () { goTheme(defaultId()); }, stats: function () { return gen ? { ms: gen.ms || 0, frames: gen.frames || 0, id: gen.t && gen.t.id, layouts: LAYS.length, palettes: PALS.length, fonts: FONTS.length, cards: CARDS.length } : null; }, count: function (fam) { return LAYS.length * PALS.length * FONTS.length * CARDS.length * 5 * DENKEYS.length * RADII.length * ACCS.length; } }, themes: function () { return allThemes().map(function (t) { return { id: t.id, name: t.name, genre: GENRES[t.gi].n, b: t.b, bi: t.bi, f: t.f, h: t.h, l: t.l, c: t.c }; }); }
+    highlights: hlList, clearHighlights: clearAllHighlights, design: function () { return JSON.parse(JSON.stringify(dx)); }, version: 6.41, design: { theme: function (s) { return genTheme(s); }, palettes: function () { return PALS; }, famOf: famOfSeed, seedIn: seedIn, show: function (s) { goTheme('g:' + s); }, hide: function () { goTheme(defaultId()); }, stats: function () { return gen ? { ms: gen.ms || 0, frames: gen.frames || 0, id: gen.t && gen.t.id, layouts: LAYS.length, palettes: PALS.length, fonts: FONTS.length, cards: CARDS.length } : null; }, count: function (fam) { return LAYS.length * PALS.length * FONTS.length * CARDS.length * 5 * DENKEYS.length * RADII.length * ACCS.length; } }, themes: function () { return allThemes().map(function (t) { return { id: t.id, name: t.name, genre: GENRES[t.gi].n, b: t.b, bi: t.bi, f: t.f, h: t.h, l: t.l, c: t.c }; }); }
   };
 })();
