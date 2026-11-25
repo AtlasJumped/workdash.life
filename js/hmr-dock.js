@@ -1,4 +1,7 @@
-/* HMR dock v6.3: one shared bottom bar for all HMR sites.
+/* HMR dock v6.4: one shared bottom bar for all HMR sites.
+   v6.4 Design: a seeded generator replaces the fixed list. A design is one integer (the seed): a mulberry32 PRNG picks family (3D or Clean), layout (9), palette (32, all checked to WCAG AA),
+     type pairing (14), card style (6), background (5 animated canvas for 3D, 5 static for Clean), density (3), radius (5), accent usage (3). Chips pick 3D, Clean, or All; Shuffle, Back, Forward;
+     Save as my view (localStorage per site, applied on the next visit), ?design=<seed> share links, and a per-site HMR default (native page; data-hmr-default overrides).
    One row along the bottom, left to right:
      far left: Back (round, browser back) then the dock's own Design button (round). v6.1: the dock's Design is the ONLY design feature on every site; a page's own
        Design button and panel (data-design / data-design-panel) are hidden, so there is never a second design control.
@@ -1567,7 +1570,7 @@
           interim = ''; changed();   // whatever was heard stays as text
           if (want) setTimeout(function () { if (want) begin(); }, 250); else { label(false); if (!/blocked|found|connection/.test(stat ? stat.textContent : '')) say(ta.value ? 'Stopped. Your words are saved.' : (idleText || '')); }
         };
-        rec.start(); label(true); say('Listening. Talk as long as you like.');
+        rec.start(); label(true); say('Listening.');
       } catch (e) { want = false; label(false); say('Voice typing could not start. You can type instead.'); }
     }
     api.stop = function () { want = false; try { if (rec) rec.stop(); } catch (e) { } label(false); };
@@ -1962,10 +1965,10 @@
   //      The original layout is never restyled. The words never change. Settings live inside the site's own Design panel, or the dock's own Design panel when a site has none.
   var DXKEY = 'hmr-dx-v1', RTKEY = 'hmr-dx-rt-v2', dx = jget(DXKEY, {});
   if (!dx || typeof dx !== 'object') dx = {};
-  dx = { pointer: dx.pointer || 'default', gi: dx.gi | 0, th: dx.th || '' };
+  dx = { pointer: dx.pointer || 'default', gi: dx.gi | 0, th: '' };   // v6.4: the design on screen is not remembered between visits; only a saved view (Save as my view) is
   var rt = jget(RTKEY, null);
   if (!rt || typeof rt !== 'object' || Array.isArray(rt)) { rt = {}; var oldRt = jget('hmr-dx-rt-v1', {}); if (oldRt && typeof oldRt === 'object') for (var ork in oldRt) if (oldRt.hasOwnProperty(ork)) rt[ork] = oldRt[ork] === 1 ? 4 : oldRt[ork] === -1 ? -4 : 0; }   // thumbs from v5 become +4 / -4 on the slider
-  function dxSave() { jset(DXKEY, dx); }
+  function dxSave() { jset(DXKEY, { pointer: dx.pointer, gi: dx.gi }); }
   function rtSave() { jset(RTKEY, rt); }
   var POINTERS = [['default', '🖱️', 'Default'], ['bullseye', '🎯', 'Bullseye'], ['large', '🔍', 'Large'], ['crosshair', '➕', 'Crosshair'], ['dot', '⚫', 'Dot'], ['star', '⭐', 'Star'], ['hand', '👆', 'Hand'], ['sparkle', '✨', 'Sparkle trail'], ['hearts', '💖', 'Hearts trail'], ['leaves', '🍃', 'Leaves trail'], ['snow', '❄️', 'Snow trail'], ['fire', '🔥', 'Fire trail'], ['music', '🎵', 'Music trail'], ['rainbow', '🌈', 'Rainbow trail']];
   var TRAILS = { sparkle: ['✨', '⭐', '✦', '💫'], hearts: ['💖', '💗', '💕'], leaves: ['🍃', '🍂', '🌿'], snow: ['❄️', '❅', '❆'], fire: ['🔥', '✨', '🧡'], music: ['🎵', '🎶', '♪'], rainbow: ['🔴', '🟠', '🟡', '🟢', '🔵', '🟣'] };
@@ -2361,20 +2364,229 @@
     return null;
   }
 
+  // ------------------------------------------------ v6.4 generative design engine
+  // A design is ONE integer (the seed). A small seeded PRNG (mulberry32) picks one value from each axis: family (3D or Clean), layout, palette, type pairing,
+  // card style, background, density, radius, accent usage. Every palette is checked (and, if needed, nudged) to WCAG AA before use. Nothing here changes the page's words.
+  function mulberry32(a) { return function () { a |= 0; a = (a + 0x6D2B79F5) | 0; var t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+  function h2r(c) { var m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(c); return m ? [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)] : [128, 128, 128]; }
+  function r2h(r) { return '#' + r.map(function (v) { v = Math.max(0, Math.min(255, Math.round(v))); return (v < 16 ? '0' : '') + v.toString(16); }).join(''); }
+  function mixc(a, b, k) { var x = h2r(a), y = h2r(b); return r2h([x[0] + (y[0] - x[0]) * k, x[1] + (y[1] - x[1]) * k, x[2] + (y[2] - x[2]) * k]); }
+  function relLum(c) { var r = h2r(c).map(function (v) { v /= 255; return v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4); }); return .2126 * r[0] + .7152 * r[1] + .0722 * r[2]; }
+  function contrastOf(a, b) { var x = relLum(a), y = relLum(b); if (x < y) { var t = x; x = y; y = t; } return (x + .05) / (y + .05); }
+  function minContrast(fg, bgs) { var m = 99; bgs.forEach(function (b) { m = Math.min(m, contrastOf(fg, b)); }); return m; }
+  // nudge a foreground toward white or black (whichever fits the dark or light surfaces) until it clears the minimum ratio on every surface
+  function fixFg(fg, bgs, min, dark) {
+    if (minContrast(fg, bgs) >= min) return fg;
+    for (var k = .04; k <= 1.001; k += .04) { var c = mixc(fg, dark ? '#ffffff' : '#000000', Math.min(1, k)); if (minContrast(c, bgs) >= min) return c; }
+    return dark ? '#ffffff' : '#000000';
+  }
+  // [name, bg, surface1, surface2, text, muted, accent]
+  var PAL_RAW = [
+    ['Midnight Orange', '#0a0a0a', '#1c1c1c', '#2c2c2c', '#f5f5f5', '#c8c8c8', '#ff6a1a'], ['Deep Ocean', '#07121f', '#0f2238', '#173250', '#eaf3ff', '#b4c9e2', '#4cc2ff'],
+    ['Forest Night', '#0b140e', '#142319', '#1f3427', '#eef7f0', '#b7cfbc', '#6fdc8c'], ['Plum Dusk', '#14091c', '#211030', '#31184a', '#f6ecff', '#cdb8e3', '#d28cff'],
+    ['Ember', '#170c08', '#261510', '#3a2018', '#fff1e8', '#e0c1b0', '#ff8a4c'], ['Slate', '#0f1419', '#1a2129', '#26303b', '#ecf1f6', '#b9c4d0', '#7cb7ff'],
+    ['Synthwave', '#0d0221', '#1b0a3d', '#2b1160', '#fdeaff', '#cdb4f0', '#ff4fd8'], ['Graphite Mint', '#101213', '#1b1f20', '#292f31', '#f1f5f4', '#bfcac7', '#3ee0b4'],
+    ['Crimson Noir', '#120708', '#221012', '#331a1d', '#fff0f0', '#e0b9bc', '#ff5a6a'], ['Aurora', '#081a1c', '#0f2b2e', '#17403f', '#e8fffb', '#aed6d0', '#5af0d0'],
+    ['Gold Ink', '#0c0b08', '#1b1911', '#2b2819', '#fbf5e2', '#d6cfb2', '#f2c14e'], ['Indigo Night', '#0b0d24', '#151a3d', '#1f2858', '#eef0ff', '#bcc3ee', '#8ea2ff'],
+    ['Cocoa', '#140e0a', '#231810', '#342418', '#f8ede3', '#d3bfae', '#e8a063'], ['Teal Steel', '#0a1416', '#132226', '#1d343a', '#e9f7f8', '#b0cdd1', '#38d0e0'],
+    ['Rose Charcoal', '#151012', '#251a1e', '#36262c', '#fdeef3', '#dcc0cb', '#ff7fa8'], ['Violet Ink', '#0e0b1a', '#1a1530', '#272046', '#f1edff', '#c4bbe6', '#a78bfa'],
+    ['Paper', '#fbf8f1', '#ffffff', '#f0eadc', '#1d1b16', '#5a5547', '#b4470b'], ['Sky Family', '#f2f8ff', '#ffffff', '#e1eefb', '#14263a', '#4a6078', '#1565c0'],
+    ['Meadow', '#f3faf2', '#ffffff', '#e0f0de', '#15281a', '#46634c', '#1b7a3a'], ['Peach', '#fff6ef', '#ffffff', '#ffe8d8', '#3a1d10', '#7a4a35', '#c2410c'],
+    ['Lavender', '#f7f4ff', '#ffffff', '#e9e2fb', '#241a3d', '#5e4f85', '#6d3fd6'], ['Lemon Sun', '#fffdf0', '#ffffff', '#fbf3c8', '#2a2508', '#6b6330', '#8a6a00'],
+    ['Mint Cream', '#f1fbf8', '#ffffff', '#d9f1ea', '#0f2b25', '#3f6a60', '#0a7a63'], ['Blush', '#fff5f7', '#ffffff', '#fde1e8', '#3a1420', '#7d4a5a', '#c21f56'],
+    ['Stone', '#f5f5f4', '#ffffff', '#e7e5e4', '#1c1917', '#57534e', '#0f6e8f'], ['Cloud', '#eef2f7', '#ffffff', '#dde5ee', '#101826', '#475569', '#2457d6'],
+    ['Sand', '#f6efe3', '#fffaf0', '#e9dcc4', '#2a2117', '#66573f', '#a14a0e'], ['Coral Reef', '#fff3f0', '#ffffff', '#ffdcd3', '#3b1510', '#7d4338', '#d13f26'],
+    ['Sage', '#f1f4ee', '#fbfdf9', '#dfe6d8', '#1f2a1b', '#526148', '#3f7a2a'], ['Ice', '#f0fafe', '#ffffff', '#d6eef8', '#0d2a38', '#3d6275', '#0b79b3'],
+    ['Mono Ink', '#ffffff', '#f4f4f5', '#e4e4e7', '#111114', '#52525b', '#111114'], ['Apricot Sky', '#fffaf3', '#ffffff', '#fdebd3', '#2b1b0c', '#6c5338', '#bf5b04']
+  ];
+  var PALS = PAL_RAW.map(function (r) {
+    var dark = relLum(r[1]) < .2, bg = r[1], s1 = r[2], s2 = r[3], ac0 = r[6];
+    var surfs = [bg, s1, s2, mixc(bg, ac0, .2), mixc(s1, ac0, .22)];   // plain, card, nested card, behind a dot or grid pattern, hero gradient end
+    var tx = fixFg(r[4], surfs, 7, dark), mu = fixFg(r[5], surfs, 4.5, dark), ac = fixFg(ac0, surfs, 4.5, dark);
+    var onAc = contrastOf('#000000', ac) >= contrastOf('#ffffff', ac) ? '#000000' : '#ffffff';
+    return { n: r[0], dark: dark, bg: bg, s1: s1, s2: s2, tx: tx, mu: mu, ac: ac, onAc: onAc, adj: tx !== r[4].toLowerCase() || mu !== r[5].toLowerCase() || ac !== r[6].toLowerCase(), surfs: surfs };
+  });
+  var SYSF = 'system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif';
+  var FONTS = [
+    ['Clean sans', SYSF, SYSF, 700, 'none', '0'], ['Georgia classic', 'Georgia,"Times New Roman",serif', SYSF, 700, 'none', '0'], ['All Georgia', 'Georgia,"Times New Roman",serif', 'Georgia,"Times New Roman",serif', 700, 'none', '0'],
+    ['Palatino book', '"Palatino Linotype",Palatino,"Book Antiqua",serif', '"Palatino Linotype",Palatino,"Book Antiqua",serif', 700, 'none', '0'], ['Trebuchet friendly', '"Trebuchet MS","Lucida Grande",Verdana,sans-serif', 'Verdana,"DejaVu Sans",sans-serif', 700, 'none', '0'],
+    ['Heavy impact', 'Impact,Haettenschweiler,"Arial Narrow Bold",sans-serif', SYSF, 400, 'uppercase', '.02em'], ['Typewriter', '"Courier New",Courier,monospace', '"Courier New",Courier,monospace', 700, 'none', '0'],
+    ['Rounded', 'ui-rounded,"SF Pro Rounded","Hiragino Maru Gothic ProN","Arial Rounded MT Bold",' + SYSF, 'ui-rounded,"SF Pro Rounded","Hiragino Maru Gothic ProN",' + SYSF, 800, 'none', '0'],
+    ['Charter serif', 'Charter,"Bitstream Charter","Iowan Old Style","Sitka Text",Cambria,Georgia,serif', 'Charter,"Bitstream Charter","Iowan Old Style","Sitka Text",Cambria,Georgia,serif', 700, 'none', '0'],
+    ['Mono and sans', 'ui-monospace,SFMono-Regular,Menlo,Consolas,monospace', SYSF, 700, 'none', '0'], ['Humanist', 'Optima,Candara,"Gill Sans","Segoe UI",sans-serif', 'Candara,"Gill Sans","Segoe UI",sans-serif', 700, 'none', '0'],
+    ['Didone contrast', 'Didot,"Bodoni MT","Playfair Display",Georgia,serif', SYSF, 700, 'none', '0'], ['Wide caps', '"Arial Black","Helvetica Neue",Arial,sans-serif', SYSF, 900, 'uppercase', '.04em'],
+    ['Narrow modern', '"Avenir Next Condensed","Arial Narrow","Roboto Condensed",' + SYSF, SYSF, 800, 'none', '0']
+  ].map(function (f) { return { n: f[0], h: f[1], b: f[2], hw: f[3], ht: f[4], hs: f[5] }; });
+  var LAYS = ['grid', 'reading', 'magazine', 'bento', 'hero', 'timeline', 'split', 'stacked', 'sidebar'];
+  var LAYNAME = { grid: 'Card grid', reading: 'Reading column', magazine: 'Magazine', bento: 'Bento', hero: 'Hero and cards', timeline: 'Timeline', split: 'Split screen', stacked: 'Stacked panels', sidebar: 'Sidebar' };
+  var CARDS = ['flat', 'outline', 'elevated', 'glass', 'soft', 'sharp'];
+  var BG3D = ['particles', 'waves', 'stars', 'orbs', 'terrain'], BGCLEAN = ['solid', 'gradient', 'paper', 'dots', 'grid'];
+  var DENS = { airy: { gap: 28, pad: 26, fs: 17, lh: 1.75 }, regular: { gap: 18, pad: 18, fs: 16, lh: 1.6 }, compact: { gap: 12, pad: 12, fs: 15, lh: 1.5 } };
+  var DENKEYS = ['airy', 'regular', 'compact'], RADII = [0, 6, 12, 18, 26], ACCS = ['link', 'bar', 'fill'];
+  function famOfSeed(seed) { return mulberry32(seed >>> 0)() < .5 ? '3D' : 'Clean'; }
+  var GENCACHE = {};
+  function genTheme(seed) {
+    seed = seed >>> 0; if (GENCACHE[seed]) return GENCACHE[seed];
+    var R = mulberry32(seed), fam = R() < .5 ? '3D' : 'Clean', pick = function (n) { return Math.floor(R() * n); };
+    var wantDark = fam === '3D' ? R() < .82 : R() < .34, pool = PALS.filter(function (p) { return p.dark === wantDark; }), pal = pool[pick(pool.length)];
+    var lay = LAYS[pick(LAYS.length)], font = FONTS[pick(FONTS.length)], card = CARDS[pick(CARDS.length)], bg = (fam === '3D' ? BG3D : BGCLEAN)[pick(5)];
+    var den = DENKEYS[pick(3)], rad = RADII[pick(RADII.length)], acu = ACCS[pick(3)];
+    if (card === 'glass' && bg === 'solid') card = 'soft';   // taste rule: glass needs something behind it
+    var t = { id: 'g:' + seed, gen: true, seed: seed, fam: fam, lay: lay, bg: bg, pal: pal, font: font, card: card, den: den, rad: rad, acu: acu, gi: -2, i: 0, name: pal.n + ', ' + LAYNAME[lay] };
+    GENCACHE[seed] = t; return t;
+  }
+  function seedIn(fam) { for (var i = 0; i < 80; i++) { var s = 1 + Math.floor(Math.random() * 99999999); if (fam === 'All' || famOfSeed(s) === fam) return s; } return 1 + Math.floor(Math.random() * 99999999); }
+  function genCSS2(t, n) {
+    var P = t.pal, F = t.font, Dn = DENS[t.den], lay = t.lay, anim = t.fam === '3D', dark = P.dark, o = [], r = t.rad, gap = Dn.gap, pad = Dn.pad;
+    if (t.card === 'soft') r = Math.max(r, 22); if (t.card === 'sharp') r = 0;
+    var line = mixc(P.bg, P.tx, .22), line2 = mixc(P.bg, P.tx, .42), shd = dark ? '0,0,0,.55' : '20,24,40,.16', ink = dark ? '255,255,255' : '0,0,0';
+    var A = anim ? (t.card === 'glass' ? .86 : .93) : (t.card === 'glass' ? .8 : 1);   // taste rule: cards in front of a moving background are never see-through enough to hurt the text
+    function surf(fill) {
+      switch (t.card) {
+        case 'outline': return 'background:' + rgbaOf(P.bg, anim ? .92 : 1) + ';border:2px solid ' + line2 + ';border-radius:' + r + 'px';
+        case 'elevated': return 'background:' + rgbaOf(fill, A) + ';border:1px solid ' + line + ';border-radius:' + r + 'px;box-shadow:0 12px 30px rgba(' + shd + '),0 2px 6px rgba(' + shd + ')';
+        case 'glass': return 'background:' + rgbaOf(fill, A) + ';border:1px solid rgba(' + ink + ',.16);border-radius:' + r + 'px;-webkit-backdrop-filter:blur(14px) saturate(1.2);backdrop-filter:blur(14px) saturate(1.2)';
+        case 'soft': return 'background:' + rgbaOf(fill, A) + ';border:0;border-radius:' + r + 'px;box-shadow:0 16px 46px rgba(' + shd + ')';
+        case 'sharp': return 'background:' + rgbaOf(fill, A) + ';border:2px solid ' + P.tx + ';border-radius:0;box-shadow:5px 5px 0 ' + P.ac;
+        default: return 'background:' + rgbaOf(fill, A) + ';border:1px solid transparent;border-radius:' + r + 'px';
+      }
+    }
+    var bgcss, grain = encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 " + (dark ? 1 : 0) + " 0 0 0 0 " + (dark ? 1 : 0) + " 0 0 0 0 " + (dark ? 1 : 0) + " 0 0 0 .16 0'/></filter><rect width='100%' height='100%' filter='url(#n)'/></svg>");
+    if (anim) bgcss = 'radial-gradient(ellipse at 50% 0%,' + mixc(P.bg, P.ac, .16) + ',' + P.bg + ' 72%),' + P.bg;
+    else if (t.bg === 'gradient') bgcss = 'linear-gradient(145deg,' + P.bg + ',' + mixc(P.bg, P.ac, .14) + '),' + P.bg;
+    else if (t.bg === 'paper') bgcss = 'url("data:image/svg+xml,' + grain + '"),' + P.bg;
+    else if (t.bg === 'dots') bgcss = 'radial-gradient(circle at 1px 1px,' + rgbaOf(P.ac, .22) + ' 1.4px,transparent 1.7px) 0 0/22px 22px,' + P.bg;
+    else if (t.bg === 'grid') bgcss = 'linear-gradient(' + rgbaOf(P.ac, .1) + ' 1px,transparent 1px) 0 0/32px 32px,linear-gradient(90deg,' + rgbaOf(P.ac, .1) + ' 1px,transparent 1px) 0 0/32px 32px,' + P.bg;
+    else bgcss = P.bg;
+    var mw = { reading: '740px', magazine: '1100px', bento: '1180px', hero: '1120px', timeline: '1080px', split: '1240px', stacked: '980px', sidebar: '1180px', grid: '1180px' }[lay];
+    o.push(':host{all:initial;display:block}*{box-sizing:border-box}');
+    o.push('.wrap{position:absolute;left:0;top:0;right:0;bottom:0;overflow:hidden;background:' + bgcss + ';color:' + P.tx + ';font-family:' + F.b + ';font-size:' + Dn.fs + 'px;line-height:' + Dn.lh + ';-webkit-text-size-adjust:100%;cursor:inherit}');
+    o.push('canvas{position:absolute;left:0;top:0;width:100%;height:100%;display:block;pointer-events:none}');
+    o.push('.scr{position:absolute;left:0;top:0;right:0;bottom:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;padding:' + (pad + 10) + 'px 14px 150px}');
+    o.push('.pg{max-width:' + mw + ';margin:0 auto;position:relative;min-width:0}.pg *{min-width:0}');
+    o.push('h1,h2,h3,h4,h5,h6{margin:0 0 .5em;font-family:' + F.h + ';color:' + P.tx + ';letter-spacing:' + F.hs + ';text-transform:' + F.ht + ';font-weight:' + F.hw + ';line-height:1.18;overflow-wrap:anywhere}');
+    o.push('h1{font-size:2.3em}h2{font-size:1.65em}h3{font-size:1.3em}h4,h5,h6{font-size:1.08em}@media (max-width:600px){h1{font-size:1.8em}h2{font-size:1.4em}.scr{padding:' + Math.max(10, pad - 4) + 'px 10px 150px}}');
+    o.push('p,ul{margin:0 0 .9em;max-width:70ch;overflow-wrap:anywhere}li{margin:0 0 .35em}ul{padding-left:1.2em}p:last-child,ul:last-child{margin-bottom:0}code,pre{font-family:"Courier New",Courier,monospace;font-size:.92em;max-width:100%;overflow-wrap:anywhere}');
+    o.push('a{color:' + P.ac + ';text-decoration:underline;text-underline-offset:.18em;cursor:pointer}a:hover{text-decoration-thickness:3px}a:focus-visible{outline:3px solid ' + P.ac + ';outline-offset:2px}::selection{background:' + P.ac + ';color:' + P.onAc + '}');
+    o.push('.sec{margin:0 0 ' + (gap + 8) + 'px;position:relative}.hd{margin:0 0 .7em}.hd h1,.hd h2{margin:0}.bd{min-width:0}');
+    var inner = 'background:' + P.s2 + ';border-radius:' + Math.round(r * .7) + 'px;border:1px solid ' + line + ';padding:' + Math.round(pad * .7) + 'px ' + pad + 'px;margin:0 0 10px';
+    var cdTop = t.acu === 'bar' ? ';border-top:4px solid ' + P.ac : '';
+    var primaryCd = '.cd{' + surf(P.s1) + ';padding:' + pad + 'px ' + (pad + 2) + 'px' + cdTop + ';transition:transform .25s}.cd:hover{transform:translateY(-3px)}';
+    var chip = t.acu === 'fill' ? '.hd{display:inline-block;max-width:100%;background:' + P.ac + ';padding:.3em .85em;border-radius:' + Math.max(4, r) + 'px}.hd h1,.hd h2{color:' + P.onAc + '}' :
+      (anim ? '.hd{display:inline-block;max-width:100%;padding:.35em .9em;' + surf(P.s1) + '}' : '');
+    var bar = t.acu === 'bar' && t.acu !== 'fill' ? '.hd:after{content:"";display:block;width:56px;height:4px;border-radius:2px;background:' + P.ac + ';margin-top:.35em}' : '';
+    var secPanel = '.sec{' + surf(P.s1) + ';padding:' + (pad + 4) + 'px ' + (pad + 8) + 'px' + (t.acu === 'bar' ? ';border-top:4px solid ' + P.ac : '') + '}.cd{' + inner + '}';
+    if (lay === 'grid') {
+      o.push(chip + bar + '.bd{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,250px),1fr));gap:' + gap + 'px;align-items:start}' + primaryCd);
+    } else if (lay === 'reading') {
+      o.push(secPanel + '.sec{margin-bottom:' + gap + 'px}' + bar + '.cd{padding:' + Math.round(pad * .6) + 'px ' + pad + 'px}.bd p,.bd ul{max-width:none}' + (t.acu === 'fill' ? chip : ''));
+    } else if (lay === 'magazine') {
+      o.push(secPanel + bar + (t.acu === 'fill' ? chip : '') + '.bd{column-count:2;column-gap:38px;column-rule:1px solid ' + line + '}.bd p,.bd ul{max-width:none}.cd{break-inside:avoid-column;background:none;border:0;border-bottom:1px solid ' + line + ';border-radius:0;padding:0 0 .6em;margin:0 0 .8em}.bd>.cd:first-child>p:first-child:first-letter{float:left;font-family:' + F.h + ';font-size:3.3em;line-height:.85;padding:.06em .1em 0 0;color:' + P.ac + '}@media (max-width:760px){.bd{column-count:1}}');
+    } else if (lay === 'bento') {
+      o.push(chip + bar + '.bd{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));grid-auto-flow:dense;gap:' + gap + 'px;align-items:stretch}' + primaryCd + '.cd{grid-column:span 2}.cd:nth-child(6n+1){grid-column:span 4}.cd:nth-child(6n){grid-column:span 6}.cd:only-child{grid-column:1/-1}@media (max-width:760px){.bd{grid-template-columns:minmax(0,1fr)}.cd,.cd:nth-child(6n+1),.cd:nth-child(6n){grid-column:auto}}');
+    } else if (lay === 'hero') {
+      o.push(chip + bar + '.sec.hero{' + surf(P.s1).replace(/background:[^;]+/, 'background:linear-gradient(135deg,' + rgbaOf(P.s1, A) + ',' + rgbaOf(mixc(P.s1, P.ac, .22), A) + ')') + ';padding:' + pad * 2 + 'px ' + (pad + 6) + 'px;text-align:center}.sec.hero .hd{display:block;background:none;border:0;box-shadow:none;padding:0;backdrop-filter:none}.sec.hero .hd h1{font-size:clamp(2em,7vw,3.3em);color:' + P.tx + '}.sec.hero .hd:after{margin-left:auto;margin-right:auto}.sec.hero .bd{display:block}.sec.hero p,.sec.hero ul{margin-left:auto;margin-right:auto;text-align:left}.sec.hero .cd{background:none;border:0;box-shadow:none;padding:0;backdrop-filter:none;transform:none}');
+      o.push('.sec:not(.hero) .bd{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,250px),1fr));gap:' + gap + 'px;align-items:start}' + primaryCd);
+    } else if (lay === 'timeline') {
+      o.push(secPanel + bar + (t.acu === 'fill' ? chip : '') + '.pg:before{content:"";position:absolute;left:50%;top:0;bottom:0;width:4px;margin-left:-2px;background:' + line2 + ';border-radius:2px}.sec{width:calc(50% - 30px)}.sec:nth-child(odd){margin-right:auto}.sec:nth-child(even){margin-left:auto}');
+      o.push('.sec:before{content:"";position:absolute;top:26px;width:18px;height:18px;border-radius:50%;background:' + P.ac + ';border:3px solid ' + P.bg + '}.sec:nth-child(odd):before{right:-39px}.sec:nth-child(even):before{left:-39px}');
+      o.push('@media (max-width:700px){.pg:before{left:14px}.sec{width:auto;margin-left:38px!important;margin-right:0!important}.sec:before{left:-34px!important;right:auto!important}}');
+    } else if (lay === 'split') {
+      o.push(chip + bar + '.pg{display:grid;grid-template-columns:minmax(220px,34%) minmax(0,1fr);gap:' + gap * 1.5 + 'px;align-items:start}.side{position:sticky;top:6px;max-height:calc(100vh - 170px);overflow:auto;' + surf(P.s1).replace(/background:[^;]+/, 'background:linear-gradient(160deg,' + rgbaOf(P.s2, A) + ',' + rgbaOf(mixc(P.s2, P.ac, .24), A) + ')') + ';padding:' + pad * 1.4 + 'px}.side h1{font-size:2em;margin:0 0 .6em}.side b{display:block;margin:0 0 6px;color:' + P.mu + '}.side ul{list-style:none;padding:0;margin:0}.side li{margin:0 0 7px}.main{min-width:0}.bd{display:grid;gap:' + gap + 'px}' + primaryCd + '@media (max-width:820px){.pg{display:block}.side{position:static;max-height:none;margin:0 0 ' + gap + 'px}}');
+    } else if (lay === 'stacked') {
+      o.push(bar + (t.acu === 'fill' ? chip : '') + '.sec{' + surf(P.s1) + ';padding:' + pad * 1.5 + 'px ' + (pad + 10) + 'px;margin-bottom:' + Math.round(gap * .6) + 'px;border-radius:' + (anim ? r : Math.min(r, 14)) + 'px}.sec:nth-child(even){' + surf(P.s2).replace(/background:[^;]+/, 'background:' + rgbaOf(P.s2, A)) + ';padding:' + pad * 1.5 + 'px ' + (pad + 10) + 'px;margin-bottom:' + Math.round(gap * .6) + 'px}.cd{background:' + rgbaOf(P.bg, .5) + ';border:1px solid ' + line + ';border-radius:' + Math.round(r * .6) + 'px;padding:' + Math.round(pad * .6) + 'px ' + pad + 'px;margin:0 0 10px}.bd p,.bd ul{max-width:none}');
+    } else {   // sidebar
+      o.push(secPanel + bar + (t.acu === 'fill' ? chip : '') + '.pg{display:grid;grid-template-columns:230px minmax(0,1fr);gap:' + gap + 'px;align-items:start}.side{position:sticky;top:6px;max-height:calc(100vh - 170px);overflow:auto;' + surf(P.s1) + ';padding:14px 16px;font-size:.92em}.side b{display:block;margin:0 0 8px;color:' + P.mu + '}.side ul{list-style:none;padding:0;margin:0}.side li{margin:0 0 6px}.main{min-width:0}@media (max-width:820px){.pg{display:block}.side{position:static;max-height:none;margin:0 0 ' + gap + 'px}}');
+    }
+    if (!rm()) { var nm = 'hg2-' + n; o.push('.sec{animation:' + nm + ' .6s ease-out backwards;animation-delay:calc(var(--i,0) * 60ms)}@keyframes ' + nm + '{0%{opacity:0;transform:translateY(16px)}}'); }
+    o.push('@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}');
+    return o.join('\n');
+  }
+  function buildPage2(t, data) {
+    var secs = sectionsOf(data.items), o = [], lay = t.lay, side = lay === 'split' || lay === 'sidebar', hero0 = secs.length && secs[0].h && secs[0].h.l === 1;
+    if (side) {
+      o.push('<aside class="side">' + (lay === 'split' && hero0 ? '<h1>' + secs[0].h.h + '</h1>' : '') + '<nav aria-label="On this page"><b>On this page</b><ul>');
+      secs.forEach(function (sc, i) { if (sc.h && !(lay === 'split' && i === 0 && hero0)) o.push('<li><a href="#s' + i + '" data-int="s' + i + '">' + sc.h.h + '</a></li>'); });
+      o.push('</ul></nav></aside><div class="main">');
+    }
+    secs.forEach(function (sc, i) {
+      var hero = i === 0 && sc.h && sc.h.l === 1, id = ' id="s' + i + '"' + (sc.h && sc.h.id ? ' data-g="' + escH(sc.h.id) + '"' : ''), skip = lay === 'split' && hero;
+      var head = sc.h && !skip ? '<div class="hd"><h' + (hero ? 1 : 2) + '>' + sc.h.h + '</h' + (hero ? 1 : 2) + '></div>' : '';
+      var body = blocksHTML(sc.b, true);
+      if (skip && !body) return;
+      o.push('<section class="sec' + (hero ? ' hero' : '') + '"' + id + ' style="--i:' + Math.min(i, 12) + '">' + head + (body ? '<div class="bd">' + body + '</div>' : '') + '</section>');
+    });
+    if (side) o.push('</div>');
+    return o.join('');
+  }
+  // the animated backgrounds: small canvas 2D scenes with a real perspective projection. Drawn behind opaque or translucent cards, about 30 frames a second, off under reduced motion.
+  function mkScene2(kind, t, W, H) {
+    var P = t.pal, AC = P.ac, TX = P.tx, MIX = mixc(P.ac, P.tx, .45), F = Math.min(W, H) * 1.15, cx0 = W / 2, cy0 = H * .46, Rn = mulberry32((t.seed ^ 0x9e3779b9) >>> 0);
+    function rn(a, b) { return a + Rn() * (b - a); }
+    function pr(x, y, z) { var k = F / Math.max(.15, z); return [cx0 + x * k, cy0 + y * k, k]; }
+    var boost = P.dark ? 1 : .8, i, n;
+    if (kind === 'particles') {
+      n = Math.round(clamp(W * H / 10000, 38, 80)); var pts = []; for (i = 0; i < n; i++) pts.push({ x: rn(-5, 5), y: rn(-4, 4), z: rn(3, 9), vx: rn(-.12, .12), vy: rn(-.1, .1), s: rn(.7, 1.7) });
+      return function (cx, tm, dt) {
+        var cs = Math.cos(tm * .07), sn = Math.sin(tm * .07), q = [];
+        pts.forEach(function (p) { p.x += p.vx * dt; p.y += p.vy * dt; if (p.x > 5) p.x = -5; if (p.x < -5) p.x = 5; if (p.y > 4) p.y = -4; if (p.y < -4) p.y = 4; var zz = p.z - 6, x2 = p.x * cs + zz * sn, z2 = -p.x * sn + zz * cs + 6; q.push(pr(x2, p.y, z2).concat(p.s)); });
+        cx.lineWidth = 1; var m = Math.min(W, H) * .22, m2 = m * m, a, b, dx_, dy_, d2;
+        for (a = 0; a < q.length; a++) for (b = a + 1; b < q.length; b++) { dx_ = q[a][0] - q[b][0]; dy_ = q[a][1] - q[b][1]; d2 = dx_ * dx_ + dy_ * dy_; if (d2 < m2) { cx.strokeStyle = rgbaOf(AC, (1 - d2 / m2) * .4 * boost); cx.beginPath(); cx.moveTo(q[a][0], q[a][1]); cx.lineTo(q[b][0], q[b][1]); cx.stroke(); } }
+        q.forEach(function (p) { cx.fillStyle = rgbaOf(MIX, .8 * boost); cx.beginPath(); cx.arc(p[0], p[1], Math.max(1, p[2] * .018 * p[3]), 0, 6.283); cx.fill(); });
+      };
+    }
+    if (kind === 'waves') {
+      var GX = 26, GZ = 15;
+      return function (cx, tm) {
+        var z, x, rows = [];
+        for (z = 0; z < GZ; z++) { var zz = 1.6 + z * .62, row = []; for (x = 0; x < GX; x++) { var xx = -8 + x * 16 / (GX - 1); row.push(pr(xx, 1.35 - (Math.sin(xx * .8 + tm * .9 + z * .3) * .34 + Math.sin(zz * .9 - tm * .7) * .3 + Math.sin(xx * .35 + zz * .5 + tm * .4) * .25), zz)); } rows.push(row); }
+        cx.lineWidth = 1.2;
+        for (z = GZ - 1; z >= 0; z--) { cx.strokeStyle = rgbaOf(z % 2 ? AC : MIX, (1 - z / GZ) * .65 * boost + .06); cx.beginPath(); rows[z].forEach(function (p, j) { if (j) cx.lineTo(p[0], p[1]); else cx.moveTo(p[0], p[1]); }); cx.stroke(); }
+        cx.strokeStyle = rgbaOf(AC, .22 * boost); cx.beginPath(); for (x = 0; x < GX; x += 2) for (z = 0; z < GZ - 1; z++) { cx.moveTo(rows[z][x][0], rows[z][x][1]); cx.lineTo(rows[z + 1][x][0], rows[z + 1][x][1]); } cx.stroke();
+      };
+    }
+    if (kind === 'stars') {
+      n = Math.round(clamp(W * H / 2600, 90, 190)); var st = []; for (i = 0; i < n; i++) st.push({ x: rn(-9, 9), y: rn(-9, 9), z: rn(.4, 12) });
+      return function (cx, tm, dt) {
+        cx.lineCap = 'round';
+        st.forEach(function (s, ix) { s.z -= dt * 1.7; if (s.z < .4) { s.z = 12; s.x = rn(-9, 9); s.y = rn(-9, 9); } var a = pr(s.x, s.y, s.z), b = pr(s.x, s.y, s.z + .22), al = clamp(1.15 - s.z / 12, .12, 1) * boost; cx.strokeStyle = rgbaOf(ix % 5 === 0 ? AC : TX, al * .8); cx.lineWidth = Math.max(.8, a[2] * .012); cx.beginPath(); cx.moveTo(b[0], b[1]); cx.lineTo(a[0], a[1]); cx.stroke(); });
+      };
+    }
+    if (kind === 'orbs') {
+      n = 13; var ob = []; for (i = 0; i < n; i++) ob.push({ x: rn(-4, 4), y: rn(-3, 3), z: rn(3, 9), a: rn(0, 6.28), w: rn(.08, .22) * (Rn() < .5 ? -1 : 1), r: rn(.5, 1.5), c: i % 3 === 0 ? TX : (i % 3 === 1 ? AC : MIX) });
+      return function (cx, tm) {
+        ob.slice().sort(function (a, b) { return b.z - a.z; }).forEach(function (o_) { var an = o_.a + tm * o_.w, p = pr(o_.x + Math.cos(an) * .9, o_.y + Math.sin(an * 1.3) * .7, o_.z), rad = o_.r * p[2] * .55, al = clamp(1.25 - o_.z / 11, .18, .8) * (P.dark ? .5 : .38); var g = cx.createRadialGradient(p[0] - rad * .3, p[1] - rad * .3, rad * .05, p[0], p[1], rad); g.addColorStop(0, rgbaOf(o_.c, al)); g.addColorStop(1, rgbaOf(o_.c, 0)); cx.fillStyle = g; cx.beginPath(); cx.arc(p[0], p[1], rad, 0, 6.283); cx.fill(); });
+      };
+    }
+    // low-poly terrain
+    var TX_ = 13, TZ = 9, seedo = rn(0, 20), shades = []; for (i = 0; i < 17; i++) shades.push(rgbaOf(mixc(P.bg, AC, .06 + i / 16 * .3), .92));
+    function hgt(x, z, tm) { return Math.sin(x * .7 + seedo) * .42 + Math.sin(z * .8 + tm * .5) * .36 + Math.sin(x * .3 - z * .5 + tm * .3) * .3; }
+    return function (cx, tm) {
+      var g = [], zi, xi, p0;
+      for (zi = 0; zi < TZ; zi++) { var r_ = [], zz = 1.5 + zi * .8; for (xi = 0; xi < TX_; xi++) { var xx = -7.5 + xi * 15 / (TX_ - 1), hh = hgt(xx, zz, tm); r_.push(pr(xx, 1.4 - hh * .7, zz).concat(hh)); } g.push(r_); }
+      cx.lineWidth = 1; cx.lineJoin = 'round';
+      for (zi = TZ - 2; zi >= 0; zi--) for (xi = 0; xi < TX_ - 1; xi++) {
+        var a = g[zi][xi], b = g[zi][xi + 1], c = g[zi + 1][xi], d = g[zi + 1][xi + 1];
+        [[a, b, c], [b, d, c]].forEach(function (tr, k) { var sh = clamp(.5 + (tr[0][3] + tr[1][3] + tr[2][3]) / 3 * .9 + (k ? .06 : -.06), 0, 1); cx.fillStyle = shades[Math.round(sh * 16)]; cx.strokeStyle = rgbaOf(AC, .22 * boost + .05); cx.beginPath(); cx.moveTo(tr[0][0], tr[0][1]); cx.lineTo(tr[1][0], tr[1][1]); cx.lineTo(tr[2][0], tr[2][1]); cx.closePath(); cx.fill(); cx.stroke(); });
+      }
+    };
+  }
+
   // ------------------------------------------------ 4. the overlay itself
   var gen = null, genN = 0, dxNote = '';
   function genRoot() { return gen && gen.on ? gen.sr : null; }
   function genStop() { if (gen) { cancelAnimationFrame(gen.raf); gen.raf = 0; } }
   function genSize() {
-    if (!gen) return; var dpr = Math.min(1.5, window.devicePixelRatio || 1), W = innerWidth, H = innerHeight; gen.W = W; gen.H = H; gen.cv.width = Math.round(W * dpr); gen.cv.height = Math.round(H * dpr); gen.dpr = dpr;
-    gen.scene = mkScene(gen.kind, gen.t, W, H);
+    if (!gen) return; var dpr = Math.min(1.5, window.devicePixelRatio || 1), W = innerWidth, H = innerHeight; if (W * H * dpr * dpr > 3.2e6) dpr = Math.max(1, Math.sqrt(3.2e6 / (W * H))); gen.W = W; gen.H = H; gen.cv.width = Math.round(W * dpr); gen.cv.height = Math.round(H * dpr); gen.dpr = dpr;
+    gen.scene = gen.t && gen.t.gen ? (rm() ? null : mkScene2(gen.kind, gen.t, W, H)) : mkScene(gen.kind, gen.t, W, H);
   }
   function genFrame(now) {
     if (!gen || !gen.on) return; gen.raf = 0;
     if (doc.hidden) { gen.raf = requestAnimationFrame(genFrame); gen.last = now; return; }
+    if (gen.t && gen.t.gen && gen.last && now - gen.last < 30) { gen.raf = requestAnimationFrame(genFrame); return; }   // about 30 frames a second
     var dt = Math.min(.05, (now - (gen.last || now)) / 1000); gen.last = now; gen.tm += dt;
     var cx = gen.cx; cx.setTransform(gen.dpr, 0, 0, gen.dpr, 0, 0); cx.clearRect(0, 0, gen.W, gen.H); cx.globalCompositeOperation = 'source-over'; cx.globalAlpha = 1; cx.lineCap = 'round';
-    if (gen.scene) { try { gen.scene(cx, gen.tm, dt); } catch (e) { gen.scene = null; } }
+    if (gen.scene) { var t0 = performance.now(); try { gen.scene(cx, gen.tm, dt); } catch (e) { gen.scene = null; } var ms = performance.now() - t0; gen.ms = (gen.ms || ms) * .9 + ms * .1; gen.frames = (gen.frames || 0) + 1; }
     if (!rm() && gen.scene) gen.raf = requestAnimationFrame(genFrame);
   }
   function genShow(t) {
@@ -2396,7 +2608,7 @@
       window.addEventListener('resize', function () { if (gen && gen.on) { genSize(); if (rm()) genFrame(performance.now()); } });
     }
     gen.host.style.cssText = 'position:fixed!important;left:0!important;top:0!important;right:0!important;bottom:var(--hmr-dsinset,0px)!important;width:auto!important;height:auto!important;z-index:99970!important;display:block!important;margin:0!important;padding:0!important;border:0!important;transform:none!important;overflow:hidden!important';
-    gen.t = t; gen.st.textContent = genCSS(t, ++genN); gen.pg.innerHTML = buildPage(t, data);
+    gen.t = t; gen.st.textContent = t.gen ? genCSS2(t, ++genN) : genCSS(t, ++genN); gen.pg.innerHTML = t.gen ? buildPage2(t, data) : buildPage(t, data);
     gen.scr.style.scrollSnapType = t.lay === 'deck' ? 'y proximity' : '';
     if (!gen.host.parentNode) doc.body.appendChild(gen.host);
     root.classList.add('hmr-gen-on'); var was = gen.on; gen.on = true;
@@ -2410,7 +2622,7 @@
     if (!gen) { root.classList.remove('hmr-gen-on'); return; }
     genStop(); gen.on = false; if (gen.host.parentNode) gen.host.parentNode.removeChild(gen.host); root.classList.remove('hmr-gen-on');
   }
-  function themeById(id) { return id ? THEME_BY_ID[id] || null : null; }
+  function themeById(id) { if (!id) return null; if (/^g:\d{1,10}$/.test(id)) { var sd = +id.slice(2); return sd > 0 && sd < 4294967296 ? genTheme(sd) : null; } return THEME_BY_ID[id] || null; }
   function applyTheme() {
     var t = themeById(dx.th);
     if (!t) { dxNote = ''; genHide(); root.removeAttribute('data-hmr-theme'); return; }
@@ -2418,10 +2630,7 @@
     if (genShow(t)) root.setAttribute('data-hmr-theme', t.id); else root.removeAttribute('data-hmr-theme');
   }
   styleEl.textContent += 'html.hmr-gen-on,html.hmr-gen-on body{overflow:hidden!important}';
-  if (dx.th) {
-    if (doc.body) applyTheme(); else doc.addEventListener('DOMContentLoaded', applyTheme);
-    window.addEventListener('load', function () { setTimeout(function () { if (dx.th) applyTheme(); }, 800); });   // pages that fill in their text late are read again
-  }
+  // (the starting design is chosen further down, once the saved view and the site default are defined)
 
   // pointers and trails
   (function () {
@@ -2460,57 +2669,93 @@
     try { var ks = []; for (var i = 0; i < localStorage.length; i++) { var k = localStorage.key(i); if (/design|theme|look|style/i.test(k) && !/^hmr-(dx|draft|hl)/.test(k)) ks.push(k + '=' + String(localStorage.getItem(k)).slice(0, 40)); } if (ks.length) o.stored = ks.slice(0, 6).join('; '); } catch (e) { }
     return o;
   }
-  var dxUIs = [], dxHist = [], dxFwd = [];
-  function allThemes() { var a = []; GENRES.forEach(function (g) { g.t.forEach(function (t) { a.push(t); }); }); return a; }
-  // every change of design goes through here so Previous can walk back through them
+  var dxUIs = [], dxHist = [], dxFwd = [], lastLook = '';
+  var FAMKEY = 'hmr-dx-fam', VIEWKEY = 'hmr-view-v1:' + location.hostname;
+  var dxFam = ['3D', 'Clean', 'All'].indexOf(lsGet(FAMKEY)) >= 0 ? lsGet(FAMKEY) : 'All';
+  // The "HMR default" look per site: 'native' is the page's own CSS (what the site's builders designed). A site can instead name a seed. data-hmr-default="native|<seed>" on the script tag wins.
+  var SITE_DEFAULTS = {
+    'claudebomb.com': 'native', 'hmrfamily.life': 'native', 'universemodel.ai': 'native', 'hmrfascia.life': 'native', 'hmrfunsies.fun': 'native', 'funsies.fun': 'native', 'hmrlanguage.life': 'native',
+    'hmrmath.life': 'native', 'hmrphysics.life': 'native', 'hmrscience.life': 'native', 'hmruniverse.life': 'native', 'personaldash.life': 'native', 'reactionapp.life': 'native',
+    'workdash.life': 'native', 'chronomath.ai': 'native', 'endgame.life': 'native', 'alltx.life': 'native'
+  };
+  function defaultId() { var d = String(D.hmrDefault || SITE_DEFAULTS[location.hostname.replace(/^www\./, '')] || 'native'); if (/^\d{1,10}$/.test(d)) return 'g:' + d; if (/^g:\d{1,10}$/.test(d)) return d; return ''; }
+  function myView() { var v = jget(VIEWKEY, null); return v && /^\d{1,10}$/.test(String(v.seed)) ? v : null; }
+  function allThemes() { var a = []; GENRES.forEach(function (g) { g.t.forEach(function (t) { a.push(t); }); }); return a; }   // the old fixed list, kept only for HMRDock.themes() and old saved ids
+  // every change of design goes through here so Back and Forward can walk the history
   function goTheme(id, noHist, keepFwd) {
     id = id || ''; if ((dx.th || '') === id) return;
     if (!keepFwd) dxFwd.length = 0;
-    if (!noHist) { dxHist.push(dx.th || ''); if (dxHist.length > 60) dxHist.shift(); }
-    var t = themeById(id); dx.th = id; if (t && t.gi >= 0) dx.gi = t.gi;
-    dxSave(); applyTheme(); dxUIs.forEach(function (u) { u(); });
+    if (!noHist) { dxHist.push(dx.th || ''); if (dxHist.length > 80) dxHist.shift(); }
+    if (dx.th && dx.th !== PROOF.id) lastLook = dx.th;
+    dx.th = id; dxSave(); applyTheme(); dxUIs.forEach(function (u) { u(); });
   }
-  function setTheme(gi, i) { var g = GENRES[gi] || GENRES[0], n = g.t.length; i = ((i % n) + n) % n; dx.gi = GENRES.indexOf(g); goTheme(g.t[i].id); }
-  function themeIdx() { var t = themeById(dx.th); return t && t.gi >= 0 ? t.i : -1; }
-  function stepTheme(dir) { var i = themeIdx(), g = GENRES[dx.gi] || GENRES[0]; if (i < 0 || themeById(dx.th).gi !== dx.gi) i = dir > 0 ? 0 : g.t.length - 1; else i += dir; setTheme(dx.gi, i); }
-  // v6.1: ONE simple design panel: Back, a big Shuffle, Forward (a history of designs), a hate / neutral / love slider for the current design, Text only, and Send ratings.
+  function bootId() {
+    try { var m = /(?:^|[?&])design=(\d{1,10})(?:&|#|$)/.exec(location.search || ''); if (m && +m[1] > 0 && +m[1] < 4294967296) return 'g:' + (+m[1]); } catch (e) { }
+    var v = myView(); return v ? 'g:' + v.seed : defaultId();
+  }
+  // v6.4 Design panel: family chips (3D, Clean, All), Back, Shuffle, Forward, a hate / neutral / love slider per seed, Text only, Send ratings, Save as my view, share link, Back to HMR default.
   function buildDx(xBtn) {
     var d = el('section', 'hmr-dx dxs'); d.setAttribute('aria-label', 'Design');
+    var fam = el('div', 'dxs-fam'); fam.setAttribute('role', 'group'); fam.setAttribute('aria-label', 'Design family'); var famB = {};
+    [['3D', '3D', 'A moving 3D background with cards in front'], ['Clean', 'Clean', 'A still background: friendly, clean, family oriented'], ['All', 'All', 'Both kinds']].forEach(function (f) {
+      var b = el('button', 'dxs-chip', f[1]); b.type = 'button'; b.title = f[2]; b.setAttribute('aria-pressed', 'false'); fam.appendChild(b); famB[f[0]] = b;
+      b.addEventListener('click', function () { dxFam = f[0]; lsSet(FAMKEY, dxFam); var t = themeById(dx.th); if (!(t && t.gen && (dxFam === 'All' || t.fam === dxFam))) goTheme('g:' + seedIn(dxFam)); else dxUIs.forEach(function (u) { u(); }); });
+    });
+    d.appendChild(fam);
     var nav = el('div', 'dxs-nav');
     var bb = el('button', 'dxs-b dxs-back'); bb.type = 'button'; bb.innerHTML = '<span aria-hidden="true">‹</span> Back'; bb.setAttribute('aria-label', 'Back to the design before');
     var sh = el('button', 'dxs-b dxs-shuf'); sh.type = 'button'; sh.innerHTML = '<span aria-hidden="true">🎲</span> Shuffle'; sh.setAttribute('aria-label', 'Shuffle: show this page in a new design');
     var fw = el('button', 'dxs-b dxs-fwd'); fw.type = 'button'; fw.innerHTML = 'Forward <span aria-hidden="true">›</span>'; fw.setAttribute('aria-label', 'Forward to the next design');
     nav.appendChild(bb); nav.appendChild(sh); nav.appendChild(fw); if (xBtn) { xBtn.classList.add('dxs-x'); nav.appendChild(xBtn); } d.appendChild(nav);
-    var note = el('p', 'st dxs-note'); note.setAttribute('role', 'status'); note.hidden = true; d.appendChild(note);
+    var info = el('p', 'st dxs-info'); info.setAttribute('role', 'status'); d.appendChild(info);
     var curT = null, rs = rateSlider('Rate this design, hate to love', function (v) { if (!curT) return; rt[curT.id] = v; rtSave(); dxUIs.forEach(function (u) { u(); }); });
     d.appendChild(rs.el);
     var row = el('div', 'dxs-row');
     var tx = el('button', 'dxs-s dxs-text'); tx.type = 'button'; tx.textContent = 'Text only'; tx.setAttribute('aria-pressed', 'false');
     var sb = el('button', 'dxs-s dxs-send'); sb.type = 'button'; sb.textContent = 'Send ratings'; sb.setAttribute('aria-expanded', 'false');
     row.appendChild(tx); row.appendChild(sb); d.appendChild(row);
+    var row2 = el('div', 'dxs-row');
+    var sv = el('button', 'dxs-s dxs-save'); sv.type = 'button'; sv.textContent = 'Save as my view';
+    var lk = el('button', 'dxs-s dxs-link'); lk.type = 'button'; lk.textContent = 'Copy share link';
+    row2.appendChild(sv); row2.appendChild(lk); d.appendChild(row2);
+    var row3 = el('div', 'dxs-row dxs-row3');
+    var hd = el('button', 'dxs-s dxs-def'); hd.type = 'button'; hd.textContent = 'Back to HMR default';
+    var cl = el('button', 'dxs-s dxs-clear'); cl.type = 'button'; cl.textContent = 'Clear my saved view';
+    row3.appendChild(hd); row3.appendChild(cl); d.appendChild(row3);
     var subw = el('div', 'dxs-sub'); subw.hidden = true;
     subw.appendChild(submitPair({
       text: function () { return ''; }, empty: 'Design ratings (no notes)', kind: 'design',
       details: function () {
         var t = themeById(dx.th), ratings = {}; for (var k in rt) if (rt.hasOwnProperty(k)) ratings[k] = rt[k];
-        return { genre: t ? (t.gi >= 0 ? GENRES[t.gi].n : 'Text only') : 'Original look', theme: t ? t.name : 'Original', themeId: t ? t.id : '', ratingScale: '-5 hate, 0 neutral, 5 love', ratings: ratings, page: location.href };
+        return { genre: t ? (t.gen ? 'Generated ' + t.fam : (t.gi >= 0 ? GENRES[t.gi].n : 'Text only')) : 'HMR default', theme: t ? t.name : 'HMR default', themeId: t ? t.id : '', seed: t && t.gen ? t.seed : 0, ratingScale: '-5 hate, 0 neutral, 5 love', ratings: ratings, page: location.href };
       }
     }).el);
     d.appendChild(subw);
     function sync() {
-      var t = themeById(dx.th); curT = t;
-      bb.disabled = !dxHist.length;
+      var t = themeById(dx.th); curT = t; var def = defaultId(), saved = myView(), atDef = (dx.th || '') === def;
+      Object.keys(famB).forEach(function (k) { famB[k].setAttribute('aria-pressed', dxFam === k ? 'true' : 'false'); });
+      bb.disabled = !dxHist.length && atDef;
       tx.setAttribute('aria-pressed', t && t.lay === 'proof' ? 'true' : 'false');
       rs.input.disabled = !t; rs.set(t && rt[t.id] != null ? rt[t.id] : 0);
-      var lb = rs.el.querySelector('label'); if (lb) lb.textContent = t ? 'Rate this design: ' + t.name + ', hate to love' : 'Rate this design, hate to love (shuffle first)';
-      note.textContent = dxNote; note.hidden = !dxNote;
+      var lb = rs.el.querySelector('label'); if (lb) lb.textContent = t ? 'Rate this design, hate to love' : 'Rate this design, hate to love (shuffle first)';
+      info.textContent = dxNote || (t ? (t.gen ? 'Design ' + t.seed + ': ' + t.fam + ', ' + t.name : 'Text only: the page\'s words in reading order') : 'HMR default: the page as we built it' + (saved ? '' : ''));
+      sv.disabled = !(t && t.gen); lk.disabled = !(t && t.gen);
+      var isSaved = !!(t && t.gen && saved && +saved.seed === t.seed); sv.textContent = isSaved ? 'Saved as my view' : 'Save as my view'; sv.setAttribute('aria-pressed', isSaved ? 'true' : 'false');
+      hd.hidden = atDef; cl.hidden = !saved; row3.hidden = atDef && !saved;
     }
     dxUIs.push(sync);
-    bb.addEventListener('click', function () { if (!dxHist.length) return; dxFwd.push(dx.th || ''); goTheme(dxHist.pop(), true, true); });
-    fw.addEventListener('click', function () { if (dxFwd.length) { dxHist.push(dx.th || ''); goTheme(dxFwd.pop(), true, true); } else stepTheme(1); });
-    sh.addEventListener('click', function () { var a = allThemes().filter(function (t) { return t.id !== dx.th && t.id !== PROOF.id; }); goTheme(a[(Math.random() * a.length) | 0].id); });
-    tx.addEventListener('click', function () { goTheme(dx.th === PROOF.id ? '' : PROOF.id); });
+    bb.addEventListener('click', function () {
+      if (dxHist.length) { dxFwd.push(dx.th || ''); goTheme(dxHist.pop(), true, true); }
+      else if ((dx.th || '') !== defaultId()) { dxFwd.push(dx.th || ''); goTheme(defaultId(), true, true); }
+    });
+    fw.addEventListener('click', function () { if (dxFwd.length) { dxHist.push(dx.th || ''); goTheme(dxFwd.pop(), true, true); } else goTheme('g:' + seedIn(dxFam)); });
+    sh.addEventListener('click', function () { var id, k = 0; do { id = 'g:' + seedIn(dxFam); } while (id === dx.th && ++k < 5); goTheme(id); });
+    tx.addEventListener('click', function () { goTheme(dx.th === PROOF.id ? (lastLook || defaultId()) : PROOF.id); });
     sb.addEventListener('click', function () { subw.hidden = !subw.hidden; sb.setAttribute('aria-expanded', subw.hidden ? 'false' : 'true'); dsInset(); });
+    sv.addEventListener('click', function () { var t = themeById(dx.th); if (!(t && t.gen)) return; if (jset(VIEWKEY, { seed: t.seed, fam: t.fam, at: Date.now() })) toast('Saved. This is now your view on this site.'); else toast('This browser would not let us save. The share link still works.'); dxUIs.forEach(function (u) { u(); }); });
+    lk.addEventListener('click', function () { var t = themeById(dx.th); if (!(t && t.gen)) return; var u = location.href.split('#')[0]; try { var uo = new URL(location.href); uo.searchParams.set('design', String(t.seed)); uo.hash = ''; u = uo.toString(); } catch (e) { } copyText(u).then(function (ok) { toast(ok ? 'Link copied. Anyone who opens it sees this design.' : 'Could not copy. The address is ' + u, null, 5000); }); });
+    hd.addEventListener('click', function () { goTheme(defaultId()); });
+    cl.addEventListener('click', function () { ldel(VIEWKEY); toast('Saved view cleared.'); dxUIs.forEach(function (u) { u(); }); });
     sync();
     return d;
   }
@@ -2552,6 +2797,11 @@
     else { if (own.btn.parentNode !== doc.body) doc.body.appendChild(own.btn); if (own.panel.parentNode !== doc.body) doc.body.appendChild(own.panel); }
   }
   function watchDx() { ensureDx(); }
+  dx.th = bootId();
+  if (dx.th) {
+    if (doc.body) applyTheme(); else doc.addEventListener('DOMContentLoaded', applyTheme);
+    window.addEventListener('load', function () { setTimeout(function () { if (dx.th) applyTheme(); }, 800); });   // pages that fill in their text late are read again
+  }
   styleEl.textContent += (HIDESEL ? HIDESEL + '{display:none!important}' : '') +
     'html .hmr-dsp{left:50%!important;right:auto!important;transform:translateX(-50%)!important;bottom:max(8px,env(safe-area-inset-bottom))!important;width:min(560px,calc(100vw - 16px))!important;max-width:calc(100vw - 16px)!important;max-height:min(55vh,420px)!important;padding:8px!important;z-index:99996!important;overflow:auto!important;border-radius:14px}' +
     '.hmr-dx.dxs{margin:0;padding:0;border:0;background:transparent;font-size:13px}' +
@@ -2562,7 +2812,9 @@
     '.dxs .dxs-x{min-width:0;min-height:46px;width:40px;padding:0;border:2px solid #111;border-radius:12px;background:#fff;color:#111;font-size:22px;line-height:1;cursor:pointer;margin:0}' +
     '.dxs .hmr-rate{margin:6px 0 2px}.dxs .hmr-rate label{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}.dxs .hmr-rate .rv{display:none}' +
     '.dxs .hmr-rate input[type=range]{height:26px}.dxs .hmr-rate .rl{margin-top:-2px}' +
-    '.dxs .dxs-row{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px}' +
+    '.dxs .dxs-row{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px}.dxs .dxs-row[hidden],.dxs .dxs-row button[hidden]{display:none}.dxs .dxs-row3{display:flex;flex-wrap:wrap}.dxs .dxs-row3 .dxs-s{flex:1 1 140px}' +
+    '.dxs .dxs-fam{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin:0 0 6px}.dxs .dxs-chip{min-height:34px;border:2px solid #111;border-radius:999px;background:#fff;color:#111;font-size:13px;font-weight:800;cursor:pointer;padding:0 6px;touch-action:manipulation;margin:0}.dxs .dxs-chip[aria-pressed="true"]{background:#111;color:#fff}' +
+    '.dxs .dxs-info{margin:4px 0 0;font-size:12px;line-height:1.3;color:#333;text-align:left;overflow-wrap:anywhere}.dxs .dxs-s[disabled]{opacity:.45;cursor:default}' +
     '.dxs .dxs-s{min-height:36px;border:1px solid #9aa4b5;border-radius:10px;background:#fff;color:#111;font-size:13px;font-weight:700;cursor:pointer;padding:0 6px;touch-action:manipulation;margin:0}' +
     '.dxs .dxs-s[aria-pressed="true"]{background:#1d4ed8;color:#fff;border-color:#1d4ed8}' +
     '.dxs .dxs-note{margin:4px 0 0}.dxs .dxs-sub{margin-top:4px}.dxs .dxs-sub[hidden]{display:none}.dxs .hmr-sub{margin:2px 0 0}.dxs .hmr-sub .hs-two{grid-template-columns:1fr 1fr}' +
@@ -2622,6 +2874,36 @@
     if (own && !own.panel.hidden) { closeOwn(true); }
   });
 
+  // ---- v6.4: keep your place when the phone turns. The topmost visible block and how far past its top we are (a fraction of its height) are remembered; after a resize
+  //      the page scrolls so that block sits at the same fraction. Works on every site; skips the dock and the design overlay.
+  (function () {
+    var SELR = 'h1,h2,h3,h4,h5,h6,p,li,blockquote,figure,img,pre,td,th,summary,.card,.btn', anchor = null, frac = 0, off = 0, lastW = innerWidth, busy = false, raf = 0;
+    function inDock(n) { try { return !!(n.closest && n.closest('#hmr-dock,.hmr-gen,.hmr-dsp,.hmr-spk,.hmr-fzm,.hmr-rxp,.hmr-fbp,.hmr-toast,.hmr-tier')); } catch (e) { return true; } }
+    function pickA() {
+      if (busy || (doc.documentElement.classList.contains('hmr-gen-on'))) return;
+      var els; try { els = doc.querySelectorAll(SELR); } catch (e) { return; }
+      var vh = innerHeight, best = null, bt = 1e9;
+      for (var i = 0; i < els.length && i < 4000; i++) {
+        var r = els[i].getBoundingClientRect(); if (r.height < 4 || r.bottom <= 24 || r.top >= vh) continue;
+        if (r.top < bt && els[i].offsetParent !== null && !inDock(els[i])) { bt = r.top; best = els[i]; if (r.top <= 0) { /* keep looking for a block that starts nearer the top but still straddles it */ } }
+        if (r.top > vh * .5 && best) break;
+      }
+      if (best) { var rb = best.getBoundingClientRect(); anchor = best; off = rb.top; frac = rb.height > 0 ? clamp(-rb.top / rb.height, 0, 1) : 0; if (rb.top > 0) frac = 0; }
+    }
+    function q() { if (busy || raf) return; raf = requestAnimationFrame(function () { raf = 0; pickA(); }); }
+    function restore() {
+      if (!anchor || !doc.contains(anchor)) return; var r = anchor.getBoundingClientRect();
+      var want = off > 0 ? off : -frac * r.height; window.scrollBy(0, r.top - want);
+    }
+    function turned() {
+      if (innerWidth === lastW) return; lastW = innerWidth; busy = true;
+      [50, 200, 500, 900].forEach(function (t) { setTimeout(restore, t); });
+      setTimeout(function () { busy = false; pickA(); }, 1000);
+    }
+    window.addEventListener('scroll', q, { passive: true }); window.addEventListener('resize', turned); window.addEventListener('orientationchange', turned);
+    if (doc.readyState === 'complete') setTimeout(pickA, 300); else window.addEventListener('load', function () { setTimeout(pickA, 300); });
+  })();
+
   // ------------------------------------------------------------------ mount
   function mount() {
     if (doc.getElementById('hmr-dock')) return;
@@ -2648,6 +2930,6 @@
     openFunsies: openFz, closeFunsies: function () { closeFz(true); }, play: function (id) { PLAY.forEach(function (p) { if (p.id === id) openPlay(p); }); }, closePlay: function () { closePlay(true); },
     stopFunsies: function () { stopFunsies(true); }, log: readLog, openReact: openRx, closeReact: function () { closeRx(true); },
     send: send, mailto: mailSelf, openFeedback: function (o) { openSheet('feedback', o); }, openLost: function () { openSheet('lost'); }, closeFeedback: function () { closeSheet(true); }, openSpeak: openSpeak, closeSpeak: function () { closeSpeak(true, true); },
-    highlights: hlList, clearHighlights: clearAllHighlights, design: function () { return JSON.parse(JSON.stringify(dx)); }, version: 6.1, themes: function () { return allThemes().map(function (t) { return { id: t.id, name: t.name, genre: GENRES[t.gi].n, b: t.b, bi: t.bi, f: t.f, h: t.h, l: t.l, c: t.c }; }); }
+    highlights: hlList, clearHighlights: clearAllHighlights, design: function () { return JSON.parse(JSON.stringify(dx)); }, version: 6.4, design: { theme: function (s) { return genTheme(s); }, palettes: function () { return PALS; }, famOf: famOfSeed, seedIn: seedIn, show: function (s) { goTheme('g:' + s); }, hide: function () { goTheme(defaultId()); }, stats: function () { return gen ? { ms: gen.ms || 0, frames: gen.frames || 0, id: gen.t && gen.t.id, layouts: LAYS.length, palettes: PALS.length, fonts: FONTS.length, cards: CARDS.length } : null; }, count: function (fam) { return LAYS.length * PALS.length * FONTS.length * CARDS.length * 5 * DENKEYS.length * RADII.length * ACCS.length; } }, themes: function () { return allThemes().map(function (t) { return { id: t.id, name: t.name, genre: GENRES[t.gi].n, b: t.b, bi: t.bi, f: t.f, h: t.h, l: t.l, c: t.c }; }); }
   };
 })();
