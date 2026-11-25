@@ -1,7 +1,7 @@
 (function () {
   "use strict";
   var HOST = "workdash.life";
-  var DESIGNS = ["Warm", "Meadow", "Sky"];
+  var DESIGNS = ["Citrus", "Meadow", "Sky"];
   var LEVELS = [["strong like", "Strong like"], ["like", "Like"], ["dislike", "Dislike"], ["strong dislike", "Strong dislike"]];
   var KEY = HOST + ".ratings.v1", DKEY = HOST + ".design";
   function el(tag, attrs, kids) {
