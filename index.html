@@ -29,11 +29,11 @@
     <h1>The work dashboard</h1>
     <p><span class="tag plan">Planned</span></p>
     <p class="lead">This is the story we are working toward. It is not built, and nothing on this site is available yet. The free personal dashboard comes first and paves the way.</p>
-    <div class="actions"><a class="btn primary" href="https://claudebomb.com/#contribute" rel="noopener">Help build the work dashboard</a><a class="btn" href="https://personaldash.life" rel="noopener">Start with the personal dashboard</a></div>
+    <div class="actions"><a class="btn primary" href="#contribute">Help build the work dashboard</a><a class="btn" href="https://personaldash.life" rel="noopener">Start with the personal dashboard</a></div>
   </div>
 </div>
 <main id="main">
-  <nav class="wrap jump" aria-label="On this page"><ul><li><a href="#status">Status</a></li><li><a href="#story">The story</a></li><li><a href="#ideas">Ideas</a></li><li><a href="#help">Help build</a></li><li><a href="#where">Where it fits</a></li></ul></nav>
+  <nav class="wrap jump" aria-label="On this page"><ul><li><a href="#status">Status</a></li><li><a href="#story">The story</a></li><li><a href="#ideas">Ideas</a></li><li><a href="#help">Help build</a></li><li><a href="#contribute">Tell us how you work</a></li><li><a href="#where">Where it fits</a></li></ul></nav>
 <section class="wrap" id="status" aria-labelledby="status-h">
 <h2 id="status-h">Planned, mid to late 2027</h2>
 <p class="prose">The personal dashboard comes first and paves the way for the work dashboard. The work dashboard is the story we are working toward. It is not built, and nothing here is available yet.</p>
@@ -89,8 +89,40 @@
 <section class="wrap" id="help" aria-labelledby="help-h">
 <h2 id="help-h">Help build the work dashboard</h2>
 <p class="prose">Tell us your job title, the tools you use at work, and how you use them. It is anonymous, and none of it is sensitive.</p>
-<p class="prose">Everything in the form is optional, and answers stay on your device until you choose to copy or email them. Do not include anything private or confidential. We read every comment.</p>
-<div class="actions"><a class="btn primary" href="https://claudebomb.com/#contribute" rel="noopener">Start the short form at claudebomb.com</a><a class="btn" href="https://personaldash.life" rel="noopener">Try the personal dashboard first</a></div>
+<p class="prose">Everything in the form is optional. Do not include anything private or confidential. We read every comment.</p>
+<div class="actions"><a class="btn primary" href="#contribute">Start the short form</a><a class="btn" href="https://personaldash.life" rel="noopener">Try the personal dashboard first</a></div>
+</section>
+<section class="wrap" id="contribute" aria-labelledby="contribute-h">
+<h2 id="contribute-h">Tell us how your work really works</h2>
+<p class="prose">The personal dashboard is here now. The work dashboard is a future state, and we build it here, together. Once people have personal dashboards and see the value, we expect them to say at work, "we need this." We do not plan to be the salespeople. You will be.</p>
+<div class="cards">
+<article class="card"><h3>How we expect it to go</h3>
+<ol class="list"><li>You build a personal dashboard.</li><li>Your company agrees to bring a dashboard to work.</li><li>The company sets its policies, and you decide what goes to your work account and what does not.</li><li>Once those conditions are set, everything left over is automated, and what you chose to share is there.</li></ol></article>
+<article class="card"><h3>What could flow between home and work</h3>
+<ul class="list"><li>A sense of community: the names of significant others and pets, birthdays, hobbies, and interests. Share a lot or a little.</li><li>Your home dashboard may reach your work calendar and to-do list, so you can add to them from your home computer.</li><li>Forward a website you find at home to your work computer.</li><li>If you feel like it, action a work email from home. We want your ideas for more of these that help both sides.</li></ul></article>
+</div>
+<form class="wform" id="wform" novalidate>
+<h3>Record or type how your work really works</h3>
+<p class="prose">Everything here is optional. Fill in as much or as little as you like. More detail helps, including your company for possible future collaboration, but leave blank anything you would rather not share. We read every comment.</p>
+<p class="small">To talk instead of type, use the Speak here button in the bottom bar.</p>
+<label for="f-prof">Profession</label>
+<select id="f-prof" name="Profession"></select>
+<label for="f-sug">Not on the list? Type your profession</label>
+<input type="text" id="f-sug" name="Suggested profession" autocomplete="off">
+<label for="f-title">Job title</label>
+<input type="text" id="f-title" name="Job title">
+<label for="f-co">Company</label>
+<input type="text" id="f-co" name="Company">
+<h3 class="cx-h3">Your tools</h3>
+<p class="small">One row per tool. Say what you use it for in plain words, then what annoys you, then how it could be better.</p>
+<div id="cx-tools"></div>
+<p><button type="button" class="btn" id="cx-addtool">Add another tool</button></p>
+<label for="f-other">Anything else you want us to know</label>
+<textarea id="f-other" name="Anything else" rows="3"></textarea>
+<div id="cx-emr" hidden><label for="f-email">Your email, so we can reply</label><input type="email" id="f-email" autocomplete="email"></div>
+<div class="actions"><button type="button" class="btn primary" id="send-mail">Submit with my email</button><button type="button" class="btn" id="send-anon">Submit anonymously</button></div>
+<p class="small" id="cx-status" role="status" aria-live="polite"></p>
+</form>
 </section>
 <section class="wrap" id="where" aria-labelledby="where-h">
 <h2 id="where-h">Where it fits</h2>
@@ -110,6 +142,38 @@
 </footer>
 <div id="picker"></div>
 <script src="js/app.js"></script>
-<script src="js/hmr-dock.js" data-site="workdash.life" data-design=".pk-open" data-design-panel=".pk-panel" defer></script>
+<script>
+(function(){
+var PROF=['Recruiting','Software engineering','Product management','Design','Data and analytics','Sales','Marketing','Customer support','Operations','Finance and accounting','Human resources','Legal','Nursing and healthcare','Teaching and education','Skilled trades','Construction','Retail','Restaurants and hospitality','Real estate','Logistics and transportation','Manufacturing','Public service','Nonprofit work','Science and research','Writing and journalism','Film, music, and arts','Farming and agriculture','Caregiving and parenting','Students','Small business owners','Freelancers','Something else'];
+var $=function(i){return document.getElementById(i)},sel=$('f-prof'),tools=$('cx-tools'),st=$('cx-status'),NT=0,H=['Tool','What you use it for','Complaints','How it could be better'];
+PROF.forEach(function(p){var o=document.createElement('option');o.textContent=p;sel.appendChild(o)});
+function addRow(){var n=NT++,r=document.createElement('div');r.className='cx-tr';var h='';
+ ['tool','use','complaint','better'].forEach(function(k,c){var id=k+'-'+n;h+='<label for="'+id+'">'+H[c]+' '+(n+1)+'</label>'+(c===0?'<input type="text" id="'+id+'" autocomplete="off">':'<textarea id="'+id+'" rows="2"></textarea>')});
+ r.innerHTML=h;tools.appendChild(r);return r}
+for(var q=0;q<3;q++)addRow();
+$('cx-addtool').addEventListener('click',function(){var r=addRow(),f=r.querySelector('input');if(f)f.focus()});
+function g(id){var e=$(id);return e?e.value.trim():''}
+function text(){
+ var prof=g('f-sug')||sel.value,t='Workflow contribution\n\nProfession: '+prof+'\nJob title: '+g('f-title')+'\nCompany: '+g('f-co')+'\n';
+ for(var i=0;i<NT;i++){var a=g('tool-'+i),b=g('use-'+i),c=g('complaint-'+i),d=g('better-'+i);if(a||b||c||d)t+='\nTool: '+a+'\nWhat I use it for: '+b+'\nComplaints: '+c+'\nHow it could be better: '+d+'\n'}
+ if(g('f-other'))t+='\nAnything else:\n'+g('f-other')+'\n';
+ return t}
+function any(){return !!(g('f-sug')||g('f-title')||g('f-co')||g('f-other')||document.querySelector('#cx-tools input')&&Array.prototype.some.call(tools.querySelectorAll('input,textarea'),function(x){return x.value.trim()}))}
+function go(email){
+ if(!any()){st.textContent='Add at least one answer first.';return}
+ if(!window.HMRDock||!window.HMRDock.send){st.textContent='Still loading. Try again in a moment.';return}
+ st.textContent='Sending...';
+ var p={kind:'workflow contribution',message:text()};if(email)p.email=email;
+ window.HMRDock.send(p).then(function(r){st.textContent=r.ok?'Sent. Thank you so much for your contribution.':'Your email app should have opened with your message. Your text is still saved here.'});
+}
+$('send-mail').addEventListener('click',function(){
+ var box=$('cx-emr');
+ if(box.hidden){box.hidden=false;st.textContent='Type your email, then press Submit with my email again.';$('f-email').focus();return}
+ var v=g('f-email');if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)){st.textContent='That email does not look right. Check it and try again.';return}
+ go(v)});
+$('send-anon').addEventListener('click',function(){go('')});
+})();
+</script>
+<script src="js/hmr-dock.js?v=6.3.1" data-site="workdash.life" data-design=".pk-open" data-design-panel=".pk-panel" defer></script>
 </body>
 </html>
