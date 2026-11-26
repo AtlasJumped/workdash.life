@@ -1,4 +1,5 @@
-/* HMR dock v6.7.2: drag any bar button anywhere (saved per visitor), Funsies lives in the HMR dashboard only, a mic at the top right of every text box.
+/* HMR dock v6.8.2: the HMR joystick (rainbow HMR button with four curved arrows, tap and hold, drags as one), rainbow mic at bottom right, button layouts with a shuffle, wider dashboard and studio.
+   (was HMR dock v6.7.2: drag any bar button anywhere (saved per visitor), Funsies lives in the HMR dashboard only, a mic at the top right of every text box.
    (was HMR dock v6.5.9: one shared bottom bar for all HMR sites.
    v6.5.9 (Leo's Speak feedback, Nov 24 and 25): the mic starts OFF when the card opens (status "Not recording yet", line "Press the record button and begin speaking");
      "Talk as long as you like."; the Speak button's label is "Do us a big favor, tell us what you think"; the Speak card can be dragged anywhere by its top line,
@@ -1568,7 +1569,7 @@
     try {
       if (!doc.body) return;
       if (dock.parentNode !== doc.body) { dock.id = 'hmr-dock'; doc.body.appendChild(dock); }
-      [backBtn, fzBtn, hmrBtn, spBtn, rxBtn, fwdBtn, again].forEach(function (b) { if (b.parentNode !== dock) dock.appendChild(b); });
+      [backBtn, fzBtn, hmrBtn, spBtn, rxBtn, fwdBtn, again].forEach(function (b) { if (b.parentNode !== dock && !(b.parentNode && b.parentNode.parentNode === dock)) dock.appendChild(b); });
       if (!styleEl.parentNode) doc.head.appendChild(styleEl);
       navState();
     } catch (e) { }
@@ -3047,13 +3048,13 @@
   //   Speech goes only into that box. Skipped: password, number, date, color, range, checkboxes, dropdowns, read-only or disabled boxes,
   //   boxes that already have a mic, and anything marked data-hmr-nomic.
   (function () {
-    var POSKEY = 'hmr-btnpos-v1', IDS = ['hmr-back', 'hmr-hmr', 'hmr-speak', 'hmr-react', 'hmr-fwd'];
+    var POSKEY = 'hmr-btnpos-v1', IDS = ['hmr-back', 'hmr-pad', 'hmr-speak', 'hmr-react', 'hmr-fwd'];
     function lsg() { try { return JSON.parse(localStorage.getItem(POSKEY) || '{}') || {}; } catch (e) { return {}; } }
     function lss(o) { try { if (Object.keys(o).length) localStorage.setItem(POSKEY, JSON.stringify(o)); else localStorage.removeItem(POSKEY); } catch (e) { } }
     var css = doc.createElement('style'); css.id = 'hmr-v67-css';
     css.textContent = [
       'html.hmr-has-hmr .hmr-dock>.hmr-fzbtn,html.hmr-has-hmr #hmr-funsies{display:none!important}',
-      '.hmr-dock>#hmr-back,.hmr-dock>#hmr-hmr,.hmr-dock>#hmr-speak,.hmr-dock>#hmr-react,.hmr-dock>#hmr-fwd{touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}',
+      '.hmr-dock>#hmr-back,.hmr-dock>#hmr-pad,.hmr-dock>#hmr-pad #hmr-hmr,.hmr-dock>#hmr-speak,.hmr-dock>#hmr-react,.hmr-dock>#hmr-fwd{touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}',
       '.hmr-dock>.hmr-moved{position:fixed!important;margin:0!important;right:auto!important;bottom:auto!important;z-index:99991}',
       '.hmr-dock>.hmr-dragging{cursor:grabbing!important;transition:none!important;transform:none!important;box-shadow:0 0 0 4px #fff,0 12px 34px rgba(0,0,0,.55)!important}',
       '.hmr-mw{position:relative!important;max-width:100%}',
@@ -3122,7 +3123,7 @@
     // the click that ends a drag is not a tap
     window.addEventListener('click', function (e) {
       if (Date.now() - swallow > 400) return;
-      var t = e.target && e.target.closest ? e.target.closest('.hmr-dock>button,.hmr-dock>a') : null;
+      var t = e.target && e.target.closest ? e.target.closest('.hmr-dock>button,.hmr-dock>a,.hmr-dock>.hmr-pad') : null;
       if (t) { swallow = 0; e.preventDefault(); e.stopImmediatePropagation(); }
     }, true);
     window.addEventListener('resize', function () { applySaved(); });
@@ -3216,6 +3217,229 @@
     }
     if (doc.body) setTimeout(boot, 0); else doc.addEventListener('DOMContentLoaded', boot);
     window.__hmrResetButtons = resetButtons;
+  })();
+
+
+  // ------------------------------------------------------------------ v6.8 (Leo, Nov 26): the HMR joystick, a rainbow mic at bottom right, layouts with a shuffle, wider panels
+  // HMR joystick: the round rainbow HMR button sits in the middle of four arrows. Each arrow is a triangle whose curved base hugs the HMR circle
+  //   (the shape you get from four circles set around the HMR button: the space between them is the arrow).
+  //   Up:    tap jumps to the top (with "Jump back" for a few seconds), hold scrolls up.
+  //   Down:  tap jumps to the bottom (with "Jump back"), hold scrolls down.
+  //   Left:  tap goes to the previous section of the page, hold keeps stepping back.
+  //   Right: tap goes to the next section, hold keeps stepping forward.
+  //   Tap HMR opens the dashboard, as before. Press HMR and move it to drag the whole joystick anywhere (saved like the other buttons).
+  // Mic (feedback): bottom right, the same size as the forward button, rainbow like the HMR button.
+  // Layouts (localStorage 'hmr-layout-v1'): Joystick (default), Right thumb, Left thumb, Reader, Classic.
+  //   "Shuffle the buttons" (in the dashboard, Right now row and Your settings) moves to the next layout and puts any dragged buttons back.
+  // Wider panels: the dashboard is up to 680px wide and the UI/UX studio up to 1040px on wide screens (phones already use the full width).
+  (function () {
+    if (typeof hmrBtn === 'undefined' || !hmrBtn) return;
+    var LKEY = 'hmr-layout-v1';
+    var LAYS = [
+      { id: 'joy', name: 'Joystick', hint: 'HMR joystick in the middle, mic at bottom right' },
+      { id: 'rt', name: 'Right thumb', hint: 'Everything near your right thumb' },
+      { id: 'lt', name: 'Left thumb', hint: 'Everything near your left thumb' },
+      { id: 'read', name: 'Reader', hint: 'Only the joystick and the mic' },
+      { id: 'classic', name: 'Classic', hint: 'The old row: plain HMR button, no arrows' }
+    ];
+    function lget() { try { var v = localStorage.getItem(LKEY) || 'joy'; for (var i = 0; i < LAYS.length; i++) if (LAYS[i].id === v) return v; } catch (e) { } return 'joy'; }
+    function lset(v) { try { if (v === 'joy') localStorage.removeItem(LKEY); else localStorage.setItem(LKEY, v); } catch (e) { } }
+    function lay(id) { for (var i = 0; i < LAYS.length; i++) if (LAYS[i].id === id) return LAYS[i]; return LAYS[0]; }
+    var cur = lget();
+    function setCls() { LAYS.forEach(function (l) { root.classList.toggle('hmr-lay-' + l.id, l.id === cur); }); }
+    setCls();
+
+    // ---- the arrow shape, in a 100 x 100 box centred on 0,0 (up arrow; the others are turned)
+    var R1 = 31, RA = 50, RC = 44, S = Math.sin(40 * Math.PI / 180) * R1, C = Math.cos(40 * Math.PI / 180) * R1;
+    var PATH = 'M' + (-S).toFixed(2) + ' ' + (-C).toFixed(2) + 'A' + R1 + ' ' + R1 + ' 0 0 1 ' + S.toFixed(2) + ' ' + (-C).toFixed(2) +
+      'A' + RC + ' ' + RC + ' 0 0 1 0 ' + (-RA) + 'A' + RC + ' ' + RC + ' 0 0 1 ' + (-S).toFixed(2) + ' ' + (-C).toFixed(2) + 'Z';
+    var DIRS = [
+      { d: 'up', rot: 0, c: ['#e0307a', '#f59e0b'], label: 'Up: tap to jump to the top, hold to scroll up' },
+      { d: 'right', rot: 90, c: ['#f59e0b', '#22c55e'], label: 'Right: tap for the next section, hold to keep going' },
+      { d: 'down', rot: 180, c: ['#06b6d4', '#3b82f6'], label: 'Down: tap to jump to the bottom, hold to scroll down' },
+      { d: 'left', rot: 270, c: ['#8b5cf6', '#e0307a'], label: 'Left: tap for the previous section, hold to keep going' }
+    ];
+    var pad = el('div', 'hmr-pad'); pad.id = 'hmr-pad'; pad.setAttribute('role', 'group'); pad.setAttribute('aria-label', 'HMR joystick');
+    DIRS.forEach(function (o, i) {
+      var b = el('button', 'hmr-pa'); b.type = 'button'; b.setAttribute('data-d', o.d); b.setAttribute('aria-label', o.label); b.title = o.label;
+      b.innerHTML = '<svg viewBox="-50 -50 100 100" aria-hidden="true" focusable="false"><defs><linearGradient id="hmrpg' + i + '" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="' + o.c[0] + '"/><stop offset="1" stop-color="' + o.c[1] + '"/></linearGradient></defs>' +
+        '<path d="' + PATH + '" transform="rotate(' + o.rot + ')" fill="url(#hmrpg' + i + ')"/></svg>';
+      pad.appendChild(b); o.b = b;
+    });
+    var undo = el('button', 'hmr-padundo', 'Jump back'); undo.type = 'button'; undo.hidden = true; pad.appendChild(undo);
+
+    var css = el('style'); css.id = 'hmr-v68-css';
+    css.textContent = [
+      '.hmr-dock{--hmr-pw:116px}@media (max-width:480px){.hmr-dock{--hmr-pw:104px}}@media (max-width:374px){.hmr-dock{--hmr-pw:90px}}',
+      // the row: Back, React | joystick | Forward, Mic
+      'html.hmr-lay-joy .hmr-dock,html.hmr-lay-read .hmr-dock{grid-template-columns:auto auto minmax(0,1fr) auto minmax(0,1fr) auto auto!important}',
+      'html.hmr-lay-joy .hmr-dock>#hmr-back{grid-column:1}html.hmr-lay-joy .hmr-dock>.hmr-rxbtn{grid-column:2}html.hmr-lay-joy .hmr-dock>.hmr-fzbtn{grid-column:2}html.hmr-lay-joy .hmr-dock>#hmr-pad{grid-column:4}html.hmr-lay-joy .hmr-dock>#hmr-fwd{grid-column:6}html.hmr-lay-joy .hmr-dock>#hmr-speak{grid-column:7}',
+      'html.hmr-lay-read .hmr-dock>#hmr-back,html.hmr-lay-read .hmr-dock>.hmr-rxbtn,html.hmr-lay-read .hmr-dock>#hmr-fwd{display:none!important}html.hmr-lay-read .hmr-dock>#hmr-pad{grid-column:4}html.hmr-lay-read .hmr-dock>#hmr-speak{grid-column:7}',
+      // right thumb: [space] Back React Forward Mic Joystick
+      'html.hmr-lay-rt .hmr-dock{grid-template-columns:minmax(0,1fr) auto auto auto auto auto!important}html.hmr-lay-rt .hmr-dock>#hmr-back{grid-column:2}html.hmr-lay-rt .hmr-dock>.hmr-rxbtn,html.hmr-lay-rt .hmr-dock>.hmr-fzbtn{grid-column:3}html.hmr-lay-rt .hmr-dock>#hmr-fwd{grid-column:4}html.hmr-lay-rt .hmr-dock>#hmr-speak{grid-column:5}html.hmr-lay-rt .hmr-dock>#hmr-pad{grid-column:6}',
+      // left thumb: Joystick Mic Back React Forward [space]
+      'html.hmr-lay-lt .hmr-dock{grid-template-columns:auto auto auto auto auto minmax(0,1fr)!important}html.hmr-lay-lt .hmr-dock>#hmr-pad{grid-column:1}html.hmr-lay-lt .hmr-dock>#hmr-speak{grid-column:2}html.hmr-lay-lt .hmr-dock>#hmr-back{grid-column:3}html.hmr-lay-lt .hmr-dock>.hmr-rxbtn,html.hmr-lay-lt .hmr-dock>.hmr-fzbtn{grid-column:4}html.hmr-lay-lt .hmr-dock>#hmr-fwd{grid-column:5}',
+      // classic: the v6.5 row, plain HMR button
+      'html.hmr-lay-classic .hmr-dock>#hmr-pad{grid-column:4}html.hmr-lay-classic .hmr-pa{display:none!important}html.hmr-lay-classic .hmr-dock{--hmr-pw:var(--hmr-hw)}',
+      '.hmr-dock>#hmr-back,.hmr-dock>.hmr-fzbtn,.hmr-dock>#hmr-pad,.hmr-dock>#hmr-speak,.hmr-dock>.hmr-rxbtn,.hmr-dock>#hmr-fwd{grid-row:1}',
+      '.hmr-dock>#hmr-pad{position:relative!important;left:auto;right:auto;bottom:auto;top:auto;margin:0!important}',
+      '.hmr-pad{pointer-events:none;width:var(--hmr-pw);height:var(--hmr-pw);touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}',
+      '.hmr-pad>#hmr-hmr{position:absolute!important;left:50%!important;top:50%!important;right:auto!important;bottom:auto!important;margin:calc(var(--hmr-hw) / -2) 0 0 calc(var(--hmr-hw) / -2)!important;z-index:2}',
+      '.hmr-pa{position:absolute;inset:0;width:100%;height:100%;padding:0;margin:0;border:0;background:none!important;box-shadow:none;pointer-events:none;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:none;outline:none}',
+      '.hmr-pa svg{display:block;width:100%;height:100%;overflow:visible;filter:drop-shadow(0 3px 6px rgba(0,0,0,.35))}',
+      '.hmr-pa path{pointer-events:visiblePainted;stroke:#fff;stroke-width:2.2;stroke-linejoin:round;transition:filter .15s}',
+      '.hmr-pa:hover path{filter:brightness(1.15)}.hmr-pa.on path{filter:brightness(1.3);stroke-width:3}',
+      '.hmr-pa:focus-visible path{stroke:#f59e0b;stroke-width:4}',
+      '.hmr-padundo{position:absolute;left:50%;bottom:calc(100% + 6px);transform:translateX(-50%);pointer-events:auto;white-space:nowrap;padding:6px 12px;border-radius:999px;border:2px solid #fff;background:#111;color:#fff;font:700 13px/1.2 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.4)}.hmr-padundo[hidden]{display:none!important}',
+      // mic: the forward button's size, rainbow like HMR
+      '.hmr-dock>#hmr-speak{width:var(--hmr-c)!important;height:var(--hmr-c)!important;background:conic-gradient(from 210deg,#e0307a,#f59e0b,#22c55e,#06b6d4,#8b5cf6,#e0307a)!important}.hmr-dock>#hmr-speak svg{width:24px;height:24px}',
+      '.hmr-dock>#hmr-speak[aria-expanded="true"]{background:linear-gradient(135deg,#dc2626,#7f1d1d)!important}',
+      // panels open above the taller joystick
+      'html:not(.hmr-lay-classic) .hmr-fbp,html:not(.hmr-lay-classic) .hmr-spk,html:not(.hmr-lay-classic) .hmr-fzm{bottom:calc(' + BASE + ' + var(--hmr-pw) + 8px)!important}',
+      'html:not(.hmr-lay-classic) .hmr-spacer{height:130px!important}',
+      // wider dashboard and studio on wide screens
+      '@media (min-width:720px){.hmrd{width:min(680px,calc(100vw - 32px))!important}html:not(.hmr-lay-classic) .hmrd:not(.hmrd-moved){bottom:calc(' + BASE + ' + 132px)!important}html:not(.hmr-lay-classic) .hmrd-toast{bottom:calc(' + BASE + ' + 138px)!important}}',
+      '@media (min-width:760px){.hmrs{width:min(1040px,calc(100vw - 32px))!important;margin-left:calc(min(1040px,calc(100vw - 32px)) / -2)!important}}',
+      '.hmrd-row:has(>[data-k="btn-shuffle"]){grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}',
+      '@media (prefers-reduced-motion:reduce){.hmr-pa path{transition:none}}'
+    ].join('');
+    function addCss() { if (!css.parentNode && doc.head) doc.head.appendChild(css); }
+
+    function mountPad() {
+      try {
+        addCss();
+        if (pad.parentNode !== dock) dock.insertBefore(pad, hmrBtn.parentNode === dock ? hmrBtn : null);
+        if (hmrBtn.parentNode !== pad) pad.insertBefore(hmrBtn, pad.firstChild);
+      } catch (e) { }
+    }
+    mountPad(); setInterval(mountPad, 3000);
+    window.addEventListener('pageshow', mountPad);
+
+    // ---- what the arrows do
+    var rm = function () { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } };
+    function maxY() { return Math.max(0, (root.scrollHeight || 0) - innerHeight); }
+    var undoY = null, undoT = 0;
+    function offerUndo(y) {
+      undoY = y; undo.hidden = false; clearTimeout(undoT);
+      undoT = setTimeout(function () { undo.hidden = true; undoY = null; }, 6000);
+    }
+    undo.addEventListener('pointerdown', function (e) { e.stopPropagation(); });
+    undo.addEventListener('click', function (e) {
+      e.stopPropagation(); if (undoY === null) return;
+      try { scrollTo({ top: undoY, behavior: rm() ? 'auto' : 'smooth' }); } catch (x) { scrollTo(0, undoY); }
+      undo.hidden = true; undoY = null;
+    });
+    function jump(to) {
+      var y = scrollY;
+      if (Math.abs(y - to) < 40) { toast(to === 0 ? 'You are already at the top.' : 'You are already at the bottom.'); return; }
+      try { scrollTo({ top: to, behavior: rm() ? 'auto' : 'smooth' }); } catch (e) { scrollTo(0, to); }
+      offerUndo(y);
+    }
+    var SECSEL = 'h1,h2,h3,section[id],article,[data-hmr-section]';
+    function sections() {
+      var out = [], seen = [], n = doc.querySelectorAll(SECSEL);
+      for (var i = 0; i < n.length; i++) {
+        var e = n[i];
+        if (e.closest('[data-hmr-dock],[data-hmr-ui],[class^="hmr"],[aria-hidden="true"],nav,footer')) continue;
+        var r = e.getBoundingClientRect(); if (!r.height && !r.width) continue;
+        var y = Math.round(r.top + scrollY);
+        var dup = false; for (var j = 0; j < seen.length; j++) if (Math.abs(seen[j] - y) < 60) { dup = true; break; }
+        if (!dup) { seen.push(y); out.push(y); }
+      }
+      return out.sort(function (a, b) { return a - b; });
+    }
+    function step(dir) {
+      var ys = sections(), y = scrollY, off = 12, t = null, i;
+      if (dir > 0) { for (i = 0; i < ys.length; i++) if (ys[i] - off > y + 8) { t = ys[i] - off; break; } if (t === null) t = Math.min(maxY(), y + innerHeight * 0.85); }
+      else { for (i = ys.length - 1; i >= 0; i--) if (ys[i] - off < y - 8) { t = ys[i] - off; break; } if (t === null) t = Math.max(0, y - innerHeight * 0.85); }
+      t = Math.max(0, Math.min(maxY(), t));
+      if (Math.abs(t - y) < 4) { toast(dir > 0 ? 'This is the end of the page.' : 'This is the start of the page.'); return; }
+      try { scrollTo({ top: t, behavior: rm() ? 'auto' : 'smooth' }); } catch (e) { scrollTo(0, t); }
+    }
+    function tap(d) { if (d === 'up') jump(0); else if (d === 'down') jump(maxY()); else step(d === 'right' ? 1 : -1); }
+    var hold = null;
+    function startHold(d) {
+      if (d === 'left' || d === 'right') { step(d === 'right' ? 1 : -1); hold.iv = setInterval(function () { step(d === 'right' ? 1 : -1); }, 650); return; }
+      var t0 = performance.now(), last = t0, sign = d === 'up' ? -1 : 1;
+      function f(now) {
+        if (!hold) return;
+        var dt = Math.min(50, now - last); last = now;
+        var v = Math.min(2400, 500 + (now - t0) * 1.1);   // px per second, speeding up the longer you hold
+        scrollBy(0, sign * v * dt / 1000);
+        hold.raf = requestAnimationFrame(f);
+      }
+      hold.raf = requestAnimationFrame(f);
+    }
+    function stopHold() {
+      if (!hold) return; var h = hold; hold = null;
+      clearTimeout(h.t); clearInterval(h.iv); if (h.raf) cancelAnimationFrame(h.raf);
+      h.b.classList.remove('on');
+      return h;
+    }
+    DIRS.forEach(function (o) {
+      var b = o.b;
+      b.addEventListener('pointerdown', function (e) {
+        if (e.button !== undefined && e.button !== 0) return;
+        e.stopPropagation(); e.preventDefault();
+        stopHold();
+        hold = { b: b, d: o.d, id: e.pointerId, held: false };
+        b.classList.add('on');
+        try { b.setPointerCapture(e.pointerId); } catch (x) { }
+        hold.t = setTimeout(function () { if (hold && hold.b === b) { hold.held = true; startHold(o.d); } }, 350);
+      });
+      function end(e) {
+        if (!hold || hold.b !== b || (e && e.pointerId !== hold.id)) return;
+        var h = stopHold();
+        if (h && !h.held && e && e.type === 'pointerup') tap(o.d);
+      }
+      b.addEventListener('pointerup', end); b.addEventListener('pointercancel', end); b.addEventListener('lostpointercapture', end);
+      b.addEventListener('click', function (e) { if (e.detail === 0) tap(o.d); });   // keyboard: Enter or Space
+      b.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+    });
+    window.addEventListener('blur', stopHold);
+
+    // ---- layouts and the shuffle
+    function applyLayout(id, say) {
+      cur = id; lset(id); setCls();
+      try { if (window.__hmrResetButtons) window.__hmrResetButtons(); } catch (e) { }
+      if (say) toast('Button layout: ' + lay(id).name + '. ' + lay(id).hint + '.', null, 4000);
+    }
+    function shuffle() { var i = 0; for (var k = 0; k < LAYS.length; k++) if (LAYS[k].id === cur) i = k; applyLayout(LAYS[(i + 1) % LAYS.length].id, true); }
+    // dashboard: a "Shuffle buttons" action in the Right now row, and the layouts in Your settings
+    function addDashItems() {
+      try {
+        var row = doc.querySelector('.hmrd-row');
+        if (row && !row.querySelector('[data-k="btn-shuffle"]')) {
+          var a = row.querySelector('[data-k="share"]') || row.firstElementChild;
+          if (a) {
+            var s = a.cloneNode(true); s.setAttribute('data-k', 'btn-shuffle'); s.classList.remove('on');
+            var ic = s.querySelector('.ic'); if (ic) ic.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg>';
+            var lb = s.querySelector('span:not(.ic)'); if (lb) lb.textContent = 'Shuffle'; else s.appendChild(doc.createTextNode('Shuffle'));
+            s.setAttribute('aria-label', 'Shuffle the button layout. Now: ' + lay(cur).name);
+            s.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); shuffle(); s.setAttribute('aria-label', 'Shuffle the button layout. Now: ' + lay(cur).name); });
+            row.appendChild(s);
+          }
+        }
+        var ra = doc.querySelector('[data-k="reset-all"]');
+        if (ra && ra.parentNode && !ra.parentNode.querySelector('[data-k="lay-joy"]')) {
+          LAYS.forEach(function (l) {
+            var it = ra.cloneNode(true); it.setAttribute('data-k', 'lay-' + l.id);
+            var bb = it.querySelector('b'), sm = it.querySelector('small');
+            if (bb) bb.textContent = 'Button layout: ' + l.name + (l.id === cur ? ' (on)' : '');
+            if (sm) sm.textContent = l.hint;
+            it.addEventListener('click', function () {
+              applyLayout(l.id, true);
+              var all = ra.parentNode.querySelectorAll('[data-k^="lay-"]');
+              for (var i = 0; i < all.length; i++) { var x = all[i].querySelector('b'), L = lay(all[i].getAttribute('data-k').slice(4)); if (x) x.textContent = 'Button layout: ' + L.name + (L.id === cur ? ' (on)' : ''); }
+            });
+            ra.parentNode.insertBefore(it, ra);
+          });
+        }
+      } catch (e) { }
+    }
+    var dT = 0;
+    try { new MutationObserver(function () { if (!dT) dT = setTimeout(function () { dT = 0; addDashItems(); }, 120); }).observe(doc.documentElement, { childList: true, subtree: true }); } catch (e) { }
+    window.__hmrLayout = { list: LAYS, get: function () { return cur; }, set: function (id) { applyLayout(lay(id).id, false); }, shuffle: shuffle };
   })();
 
   window.HMRDock = {
