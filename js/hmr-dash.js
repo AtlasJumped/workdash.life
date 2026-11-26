@@ -565,7 +565,6 @@
   var SITES = [
     { h: 'claudebomb.com', n: 'claudebomb.com', d: 'Set up your free personal AI dashboard' },
     { h: 'hmrfamily.life', n: 'HMR family', d: 'The home of the HMR family' },
-    { h: 'universemodel.ai', n: 'universemodel.ai', d: 'The holistic model of reality' },
     { h: 'endgame.life', n: 'endgame.life', d: 'A look at life in 2036' },
     { h: 'reactionapp.life', n: 'Reaction', d: 'React to anything, together' }
   ];

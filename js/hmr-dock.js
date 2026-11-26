@@ -1184,8 +1184,7 @@
   var RECKEY = 'hmr-funsies-recent-v1', fzm = null, povEl = null, povT = 0;
   var PLAY = [
     { id: 'smash', title: 'Fennsmash', sub: 'The smash game', url: 'https://claudebomb.com/smash/', ic: 'M5 19 15 9M12 4l8 8M4 12l3 3' },
-    { id: 'react', title: 'Reaction App', sub: 'Test your reactions', url: 'https://reactionapp.life/app/', ic: 'M12 3a9 9 0 1 0 .1 0zM8.5 10h.01M15.5 10h.01M8 15c2 2 6 2 8 0' },
-    { id: 'tenseg', title: 'Tensegrity physics sim', sub: 'Pluck a living structure', url: 'https://universemodel.ai/simulation.html', ic: 'M5 5l14 14M19 5 5 19M5 5h14v14H5z' }
+    { id: 'react', title: 'Reaction App', sub: 'Test your reactions', url: 'https://reactionapp.life/app/', ic: 'M12 3a9 9 0 1 0 .1 0zM8.5 10h.01M15.5 10h.01M8 15c2 2 6 2 8 0' }
   ];
   function icon(d) { var s = doc.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('aria-hidden', 'true'); var p = doc.createElementNS('http://www.w3.org/2000/svg', 'path'); p.setAttribute('d', d); s.appendChild(p); return s; }
   function fxBtn(e) { var b = el('button', 'hmr-ffb'); b.type = 'button'; b.setAttribute('data-fx', e.name); b.appendChild(icon(e.ic || 'M12 3v18M3 12h18')); b.appendChild(el('span', '', e.label || e.name)); b.addEventListener('click', function () { choose(e.name); }); return b; }
