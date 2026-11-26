@@ -1,4 +1,5 @@
-/* HMR dock v6.5.9: one shared bottom bar for all HMR sites.
+/* HMR dock v6.7.1: drag any bar button anywhere (saved per visitor), Funsies lives in the HMR dashboard only, a mic at the top right of every text box.
+   (was HMR dock v6.5.9: one shared bottom bar for all HMR sites.
    v6.5.9 (Leo's Speak feedback, Nov 24 and 25): the mic starts OFF when the card opens (status "Not recording yet", line "Press the record button and begin speaking");
      "Talk as long as you like."; the Speak button's label is "Do us a big favor, tell us what you think"; the Speak card can be dragged anywhere by its top line,
      with a one-time hint ("You can grab this and move it anywhere").
@@ -3035,6 +3036,184 @@
     } catch (e) { }
   }
   if (doc.body) mount(); else doc.addEventListener('DOMContentLoaded', mount);
+
+
+  // ------------------------------------------------------------------ v6.7 (Leo, Nov 26): drag every bar button, Funsies only in the main menu, a mic in every text box
+  // Drag: press any bar button (Back, Forward, HMR, the feedback mic, React) and move it; a press that moves under 8px is still a normal tap.
+  //   Where each button sits is saved per visitor in this browser (localStorage 'hmr-btnpos-v1', as fractions of the window) and comes back on every page.
+  //   "Put the buttons back" sits in the dashboard's Your settings; "Reset everything on this site" also clears it.
+  // Funsies: the bar button is hidden wherever the HMR button (and its dashboard, which holds Funsies) is on the bar.
+  // Mic in every box: every text box (textarea; input of type text, search, email, url, tel) gets a round mic at its top right, inside the box.
+  //   Speech goes only into that box. Skipped: password, number, date, color, range, checkboxes, dropdowns, read-only or disabled boxes,
+  //   boxes that already have a mic, and anything marked data-hmr-nomic.
+  (function () {
+    var POSKEY = 'hmr-btnpos-v1', IDS = ['hmr-back', 'hmr-hmr', 'hmr-speak', 'hmr-react', 'hmr-fwd'];
+    function lsg() { try { return JSON.parse(localStorage.getItem(POSKEY) || '{}') || {}; } catch (e) { return {}; } }
+    function lss(o) { try { if (Object.keys(o).length) localStorage.setItem(POSKEY, JSON.stringify(o)); else localStorage.removeItem(POSKEY); } catch (e) { } }
+    var css = doc.createElement('style'); css.id = 'hmr-v67-css';
+    css.textContent = [
+      'html.hmr-has-hmr .hmr-dock>.hmr-fzbtn,html.hmr-has-hmr #hmr-funsies{display:none!important}',
+      '.hmr-dock>#hmr-back,.hmr-dock>#hmr-hmr,.hmr-dock>#hmr-speak,.hmr-dock>#hmr-react,.hmr-dock>#hmr-fwd{touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}',
+      '.hmr-dock>.hmr-moved{position:fixed!important;margin:0!important;right:auto!important;bottom:auto!important;z-index:99991}',
+      '.hmr-dock>.hmr-dragging{cursor:grabbing!important;transition:none!important;transform:none!important;box-shadow:0 0 0 4px #fff,0 12px 34px rgba(0,0,0,.55)!important}',
+      '.hmr-mw{position:relative!important;max-width:100%}',
+      '.hmr-fmic{position:absolute;top:6px;right:6px;z-index:2;width:30px;height:30px;min-width:0!important;min-height:0!important;padding:0!important;margin:0!important;border-radius:50%;border:2px solid #fff;background:linear-gradient(135deg,#ec4899,#f59e0b 55%,#22c55e);color:#fff!important;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.3);-webkit-tap-highlight-color:transparent;touch-action:manipulation;line-height:1}',
+      '.hmr-fmic.one{top:50%;transform:translateY(-50%)}',
+      '.hmr-fmic[hidden]{display:none!important}.hmr-fmic svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;display:block}',
+      '.hmr-fmic.rec{background:linear-gradient(135deg,#dc2626,#7f1d1d);animation:hmrfm 1.2s ease-in-out infinite}@keyframes hmrfm{50%{box-shadow:0 0 0 6px rgba(220,38,38,.25)}}',
+      '.hmr-fmic:focus-visible{outline:3px solid #f59e0b;outline-offset:2px}',
+      '@media (pointer:coarse){.hmr-fmic{width:34px;height:34px}}',
+      '@media (prefers-reduced-motion:reduce){.hmr-fmic.rec{animation:none}}'
+    ].join('');
+    function addCss() { if (!css.parentNode && doc.head) doc.head.appendChild(css); }
+
+    // ---- drag
+    function clampTo(b, x, y) {
+      var w = b.offsetWidth || 50, h = b.offsetHeight || 50, vw = root.clientWidth || innerWidth, vh = innerHeight;
+      return [Math.max(4, Math.min(vw - w - 4, x)), Math.max(4, Math.min(vh - h - 4, y))];
+    }
+    function place(b, x, y) {
+      var p = clampTo(b, x, y);
+      b.classList.add('hmr-moved');
+      // inline !important beats the bar's own '#hmr-... {position:relative!important}' rules
+      [['position', 'fixed'], ['right', 'auto'], ['bottom', 'auto'], ['margin', '0'], ['z-index', '99991']].forEach(function (kv) { b.style.setProperty(kv[0], kv[1], 'important'); });
+      b.style.setProperty('left', p[0] + 'px', 'important'); b.style.setProperty('top', p[1] + 'px', 'important');
+      try { var r = b.getBoundingClientRect(), ex = p[0] - r.left, ey = p[1] - r.top; if (Math.abs(ex) > .5 || Math.abs(ey) > .5) { b.style.setProperty('left', (p[0] + ex) + 'px', 'important'); b.style.setProperty('top', (p[1] + ey) + 'px', 'important'); } } catch (e) { }
+      return p;
+    }
+    function unplace(b) { b.classList.remove('hmr-moved'); ['position', 'right', 'bottom', 'margin', 'z-index', 'left', 'top'].forEach(function (k) { b.style.removeProperty(k); }); }
+    function applySaved() {
+      var o = lsg(), vw = root.clientWidth || innerWidth, vh = innerHeight;
+      IDS.forEach(function (id) {
+        var b = doc.getElementById(id); if (!b) return;
+        var s = o[id]; if (s && isFinite(s.x) && isFinite(s.y)) place(b, s.x * vw, s.y * vh); else if (b.classList.contains('hmr-moved')) unplace(b);
+      });
+    }
+    var drag = null, swallow = 0;
+    function wire(b) {
+      if (!b || b.__hmrDrag) return; b.__hmrDrag = 1;
+      b.addEventListener('pointerdown', function (e) {
+        if (e.button !== undefined && e.button !== 0) return;
+        var r = b.getBoundingClientRect();
+        drag = { b: b, id: e.pointerId, sx: e.clientX, sy: e.clientY, ox: e.clientX - r.left, oy: e.clientY - r.top, on: false };
+      });
+    }
+    doc.addEventListener('pointermove', function (e) {
+      if (!drag || e.pointerId !== drag.id) return;
+      var dx = e.clientX - drag.sx, dy = e.clientY - drag.sy;
+      if (!drag.on) {
+        if (dx * dx + dy * dy < 64) return;
+        drag.on = true; drag.b.classList.add('hmr-dragging');
+        try { drag.b.setPointerCapture(drag.id); } catch (x) { }
+      }
+      e.preventDefault();
+      place(drag.b, e.clientX - drag.ox, e.clientY - drag.oy);
+    }, { passive: false });
+    function endDrag(e) {
+      if (!drag || (e && e.pointerId !== drag.id)) return;
+      var d = drag; drag = null;
+      if (!d.on) return;
+      d.b.classList.remove('hmr-dragging');
+      swallow = Date.now();
+      var r = d.b.getBoundingClientRect(), vw = root.clientWidth || innerWidth, vh = innerHeight, o = lsg();
+      o[d.b.id] = { x: +(r.left / vw).toFixed(4), y: +(r.top / vh).toFixed(4) }; lss(o);
+    }
+    doc.addEventListener('pointerup', endDrag); doc.addEventListener('pointercancel', endDrag);
+    // the click that ends a drag is not a tap
+    window.addEventListener('click', function (e) {
+      if (Date.now() - swallow > 400) return;
+      var t = e.target && e.target.closest ? e.target.closest('.hmr-dock>button,.hmr-dock>a') : null;
+      if (t) { swallow = 0; e.preventDefault(); e.stopImmediatePropagation(); }
+    }, true);
+    window.addEventListener('resize', function () { applySaved(); });
+    function resetButtons() { lss({}); IDS.forEach(function (id) { var b = doc.getElementById(id); if (b) unplace(b); }); }
+
+    // "Put the buttons back" in the dashboard's Your settings (any dash version that has "Reset everything on this site")
+    function addResetItem() {
+      var ra = doc.querySelector('[data-k="reset-all"]'); if (!ra || !ra.parentNode || ra.parentNode.querySelector('[data-k="btn-pos"]')) return;
+      var it = ra.cloneNode(true); it.setAttribute('data-k', 'btn-pos');
+      var bb = it.querySelector('b'), sm = it.querySelector('small');
+      var moved = Object.keys(lsg()).length > 0;
+      if (bb) bb.textContent = 'Put the buttons back'; if (sm) sm.textContent = moved ? 'Move the bottom buttons back to where they started' : 'Your bottom buttons are where they started. Drag any of them to move it.';
+      it.addEventListener('click', function () { resetButtons(); if (sm) sm.textContent = 'Done. The bottom buttons are back where they started.'; });
+      ra.parentNode.insertBefore(it, ra);
+    }
+
+    // ---- a mic in every text box
+    var MICICO = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"/></svg>';
+    var TYPES = { text: 1, search: 1, email: 1, url: 1, tel: 1, '': 1 };
+    var active = null;
+    function hasMic(f) {
+      if (f.closest('.hmr-tw,.hmr-mw,[data-hmr-nomic]')) return true;
+      var p = f.parentNode; if (!p || !p.querySelectorAll) return false;
+      var near = p.querySelectorAll('button,[role="button"]');
+      for (var i = 0; i < near.length; i++) { var s = ((near[i].getAttribute('aria-label') || '') + ' ' + (near[i].title || '') + ' ' + (near[i].className || '') + ' ' + (near[i].id || '')).toLowerCase(); if (/\bmic|microphone|talk|speak|record|voice|dictat/.test(s)) return true; }
+      return false;
+    }
+    function eligible(f) {
+      if (f.__hmrMic) return false;
+      var tag = f.tagName;
+      if (tag === 'INPUT') { if (!TYPES[(f.getAttribute('type') || '').toLowerCase()]) return false; }
+      else if (tag !== 'TEXTAREA') return false;
+      if (f.readOnly || f.disabled || f.hidden || f.type === 'hidden') return false;
+      if (f.closest('.hmr-dock,[aria-hidden="true"]')) return false;
+      if (f.getAttribute('data-hmr-nomic') !== null) return false;
+      return !hasMic(f);
+    }
+    function wrapField(f) {
+      var cs = getComputedStyle(f), par = f.parentNode, pcs = getComputedStyle(par);
+      if (cs.display === 'none' || cs.visibility === 'hidden') return null;
+      var w = doc.createElement('span'); w.className = 'hmr-mw';
+      var block = cs.display === 'block' || cs.display === 'flex' || cs.display === 'grid';
+      var pflex = /flex|grid/.test(pcs.display);
+      w.style.display = block ? 'block' : 'inline-block';
+      ['marginTop', 'marginRight', 'marginBottom', 'marginLeft', 'flexGrow', 'flexShrink', 'flexBasis', 'alignSelf', 'gridColumn', 'gridRow', 'gridArea', 'order'].forEach(function (k) { if (pflex || /^margin/.test(k)) w.style[k] = cs[k]; });
+      if (block || pflex) {
+        var pw = par.clientWidth - parseFloat(pcs.paddingLeft || 0) - parseFloat(pcs.paddingRight || 0);
+        if (f.offsetWidth >= pw - 2 || pflex) { w.style.width = pflex ? 'auto' : '100%'; f.style.setProperty('width', '100%'); } else w.style.width = f.offsetWidth + 'px';
+        if (pflex && cs.flexGrow === '0' && cs.flexBasis === 'auto') w.style.width = f.offsetWidth + 'px';
+      }
+      f.style.setProperty('margin', '0'); f.style.setProperty('box-sizing', 'border-box');
+      par.insertBefore(w, f); w.appendChild(f);
+      return w;
+    }
+    function addMic(f) {
+      f.__hmrMic = 1;
+      if (typeof makeMic !== 'function' || !SR) return;
+      if (!f.offsetWidth || f.offsetWidth < 90) { f.__hmrMic = 0; return; }   // not laid out yet (hidden panel) or too narrow: try again later
+      var w = wrapField(f); if (!w) { f.__hmrMic = 0; return; }
+      var one = f.tagName === 'INPUT';
+      var b = doc.createElement('button'); b.type = 'button'; b.className = 'hmr-fmic' + (one ? ' one' : ''); b.innerHTML = MICICO;
+      b.setAttribute('aria-label', 'Talk instead of typing'); b.title = 'Talk instead of typing'; b.tabIndex = 0;
+      w.appendChild(b);
+      var pr = parseFloat(getComputedStyle(f).paddingRight || 0); if (pr < 42) f.style.setProperty('padding-right', '42px', 'important');
+      if (!one) { var pt = parseFloat(getComputedStyle(f).paddingTop || 0); if (pt < 8) f.style.setProperty('padding-top', '8px'); }
+      var api = makeMic(f, b, null, function () { try { f.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) { } });
+      b.addEventListener('click', function () {
+        if (api.on && api.on()) { if (active && active !== api) { try { active.stop(); } catch (e) { } } active = api; }
+        else { try { f.dispatchEvent(new Event('input', { bubbles: true })); } catch (e) { } if (active === api) active = null; }
+      });
+      b.addEventListener('mousedown', function (e) { e.preventDefault(); });   // keep the box's focus and caret
+    }
+    var scanT = 0;
+    function scan() {
+      scanT = 0; addCss();
+      if (doc.getElementById('hmr-hmr')) root.classList.add('hmr-has-hmr');
+      IDS.forEach(function (id) { wire(doc.getElementById(id)); });
+      addResetItem();
+      var fs = doc.querySelectorAll('textarea,input');
+      for (var i = 0; i < fs.length; i++) { try { if (eligible(fs[i])) addMic(fs[i]); } catch (e) { } }
+    }
+    function soon() { if (!scanT) scanT = setTimeout(scan, 150); }
+    function boot() {
+      scan(); applySaved();
+      try { new MutationObserver(soon).observe(doc.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden', 'class', 'open'] }); } catch (e) { }
+      doc.addEventListener('focusin', function (e) { var t = e.target; if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA') && eligible(t)) addMic(t); });
+      window.addEventListener('pageshow', function () { scan(); applySaved(); });
+    }
+    if (doc.body) setTimeout(boot, 0); else doc.addEventListener('DOMContentLoaded', boot);
+    window.__hmrResetButtons = resetButtons;
+  })();
 
   window.HMRDock = {
     site: CFG.site, effects: EFFECTS.map(function (e) { return e.name; }),
