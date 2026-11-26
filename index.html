@@ -28,6 +28,7 @@
     <p class="eyebrow">workdash.life</p>
     <h1>The work dashboard</h1>
     <p><span class="tag plan">Planned</span></p>
+    <p class="lead">You've been given power that you didn't know you have. Our mission is to extend our dashboard from your personal life to your work life, for free, for everybody.</p>
     <p class="lead">This is the story we are working toward. It is not built, and nothing on this site is available yet. The free personal dashboard comes first and paves the way.</p>
     <div class="actions"><a class="btn primary" href="#contribute">Help build the work dashboard</a><a class="btn" href="https://personaldash.life" rel="noopener">Start with the personal dashboard</a></div>
   </div>
@@ -104,7 +105,7 @@
 <form class="wform" id="wform" novalidate>
 <h3>Record or type how your work really works</h3>
 <p class="prose">Everything here is optional. Fill in as much or as little as you like. More detail helps, including your company for possible future collaboration, but leave blank anything you would rather not share. We read every comment.</p>
-<p class="small">To talk instead of type, use the Speak here button in the bottom bar.</p>
+<p class="small">To talk instead of type, press the microphone in any box. Your words go only into that box.</p>
 <label for="f-prof">Profession</label>
 <select id="f-prof" name="Profession"></select>
 <label for="f-sug">Not on the list? Type your profession</label>
@@ -113,8 +114,8 @@
 <input type="text" id="f-title" name="Job title">
 <label for="f-co">Company</label>
 <input type="text" id="f-co" name="Company">
-<h3 class="cx-h3">Your tools</h3>
-<p class="small">One row per tool. Say what you use it for in plain words, then what annoys you, then how it could be better.</p>
+<h3 class="cx-h3">Name the tools you use</h3>
+<p class="small">For example: Slack, Outlook, Teams, Gmail, Greenhouse, Workday, Jira, or Salesforce. One row per tool. Say what you use it for in plain words, then what annoys you, then how it could be better.</p>
 <div id="cx-tools"></div>
 <p><button type="button" class="btn" id="cx-addtool">Add another tool</button></p>
 <label for="f-other">Anything else you want us to know</label>
@@ -148,9 +149,30 @@ var PROF=['Recruiting','Software engineering','Product management','Design','Dat
 var $=function(i){return document.getElementById(i)},sel=$('f-prof'),tools=$('cx-tools'),st=$('cx-status'),NT=0,H=['Tool','What you use it for','Complaints','How it could be better'];
 PROF.forEach(function(p){var o=document.createElement('option');o.textContent=p;sel.appendChild(o)});
 function addRow(){var n=NT++,r=document.createElement('div');r.className='cx-tr';var h='';
- ['tool','use','complaint','better'].forEach(function(k,c){var id=k+'-'+n;h+='<label for="'+id+'">'+H[c]+' '+(n+1)+'</label>'+(c===0?'<input type="text" id="'+id+'" autocomplete="off">':'<textarea id="'+id+'" rows="2"></textarea>')});
+ ['tool','use','complaint','better'].forEach(function(k,c){var id=k+'-'+n;h+='<label for="'+id+'">'+H[c]+' '+(n+1)+'</label>'+(c===0?'<input type="text" id="'+id+'" autocomplete="off" placeholder="For example: Slack">':'<textarea id="'+id+'" rows="2"></textarea>')});
  r.innerHTML=h;tools.appendChild(r);return r}
+/* a microphone in every box: live words while you talk, only into that box; "Listening" goes away when you stop */
+var SR=window.SpeechRecognition||window.webkitSpeechRecognition,live=null;
+function micFor(f){
+ if(!SR||!f||f.getAttribute('data-mic'))return;f.setAttribute('data-mic','1');
+ var w=document.createElement('div');w.className='mic-w';f.parentNode.insertBefore(w,f);w.appendChild(f);
+ var b=document.createElement('button');b.type='button';b.className='mic-b';b.setAttribute('aria-label','Talk instead of typing');b.title='Talk instead of typing';b.innerHTML='<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3zM5 11a7 7 0 0 0 14 0M12 18v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+ var s=document.createElement('span');s.className='mic-s';s.setAttribute('aria-live','polite');w.appendChild(b);w.appendChild(s);
+ b.addEventListener('click',function(){
+  if(live&&live.f===f){live.r.stop();return}
+  if(live)live.r.stop();
+  var r=new SR(),base=f.value;r.continuous=true;r.interimResults=true;r.lang=document.documentElement.lang||'en-US';
+  live={r:r,f:f};b.classList.add('on');b.setAttribute('aria-pressed','true');s.textContent='Listening';
+  r.onresult=function(e){var fin='',tmp='';for(var i=0;i<e.results.length;i++){if(e.results[i].isFinal)fin+=e.results[i][0].transcript;else tmp+=e.results[i][0].transcript}var sep=base&&!/\s$/.test(base)?' ':'';f.value=base+sep+fin+tmp};
+  r.onerror=function(e){s.textContent=e.error==='not-allowed'?'The microphone is blocked. Allow it in your browser settings, or type.':''};
+  r.onend=function(){b.classList.remove('on');b.setAttribute('aria-pressed','false');if(s.textContent==='Listening')s.textContent='';if(live&&live.r===r)live=null};
+  try{r.start()}catch(x){r.onend()}
+ });
+}
+function mics(root){Array.prototype.forEach.call(root.querySelectorAll('input[type=text],textarea'),micFor)}
+var _add=addRow;addRow=function(){var r=_add();mics(r);return r};
 for(var q=0;q<3;q++)addRow();
+['f-sug','f-title','f-co','f-other'].forEach(function(i){micFor($(i))});
 $('cx-addtool').addEventListener('click',function(){var r=addRow(),f=r.querySelector('input');if(f)f.focus()});
 function g(id){var e=$(id);return e?e.value.trim():''}
 function text(){

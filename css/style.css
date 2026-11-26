@@ -79,6 +79,12 @@ footer{margin-top:48px;padding:32px 0 100px;background:var(--bg2);border-top:1px
 .wform input,.wform select,.wform textarea{width:100%;max-width:100%;font:inherit;font-size:16px;padding:9px 10px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink)}
 .wform .cx-tr{border-top:1px dashed var(--line);margin-top:10px;padding-top:4px}
 .wform [hidden]{display:none}
+.wform .mic-w{position:relative}
+.wform .mic-w input,.wform .mic-w textarea{padding-right:52px}
+.wform .mic-b{position:absolute;right:6px;top:6px;width:38px;height:38px;border-radius:50%;border:2px solid var(--accent);background:var(--card);color:var(--accent);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
+.wform .mic-b.on{background:#e0307a;border-color:#e0307a;color:#fff}
+.wform .mic-s{display:block;font-size:.85rem;color:var(--mute);min-height:0}
+.wform .mic-s:empty{display:none}
 
 /* Citrus design (claudebomb.com b558849, Nov 23): default look, design 1 */
 html:not([data-design="2"]):not([data-design="3"]){--bg:#fff6e0;--bg2:#ffe9a8;--card:#ffffff;--ink:#151515;--mute:#3d3a33;--accent:#151515;--accent2:#ff5a36;--accent-ink:#ffd23f;--line:#151515;--radius:2rem;--font:ui-sans-serif,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;--head:ui-sans-serif,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
