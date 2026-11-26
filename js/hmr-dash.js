@@ -1,4 +1,5 @@
-/* HMR dash v1.5 (Nov 25, Leo's feedback): the dashboard can be dragged anywhere on the screen by its top bar, with a one-time hint.
+/* HMR dash v1.6 (Nov 26, Leo): Log in asks a few optional questions (stored on this device); sharing enough and saying yes to new ideas about reality reveals a hidden invitation.
+   HMR dash v1.5 (Nov 25, Leo's feedback): the dashboard can be dragged anywhere on the screen by its top bar, with a one-time hint.
    HMR dash v1.4: the HMR family experience dashboard, opened by the round HMR button in the center of the shared bottom bar (hmr-dock.js v6.5+).
    One file, copied next to hmr-dock.js on every HMR site, lazy-loaded the first time the HMR button is pressed (or at boot when a visitor has a saved look).
    Layers:
@@ -18,7 +19,7 @@
 (function () {
   'use strict';
   if (window.HMRDash && window.HMRDash.version >= 1) return;
-  var doc = document, root = doc.documentElement, VERSION = 1.5;
+  var doc = document, root = doc.documentElement, VERSION = 1.6;
   var SKIN_URL = 'https://hmrfamily.life/hmr-kit/skin.json';
   var DRAG_KEY = 'hmr-dash-drag-hint', KEY = 'hmr-studio-v1', INTRO_KEY = 'hmr-dash-intro-off', SKIN_CACHE = 'hmr-skin-v1';
   function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
@@ -396,6 +397,13 @@
     '.hmrd-toast{position:fixed;z-index:99998;left:50%;bottom:calc(max(12px,env(safe-area-inset-bottom)) + 76px);transform:translateX(-50%);display:flex;align-items:center;gap:10px;max-width:calc(100vw - 24px);padding:10px 12px 10px 16px;border-radius:14px;background:#111;color:#fff;border:1px solid rgba(255,255,255,.2);box-shadow:0 10px 30px rgba(0,0,0,.45);font-size:14px;font-weight:600}',
     '.hmrd-toast button{min-height:44px;padding:0 12px;border-radius:999px;border:0;background:#fff;color:#111;font-weight:800;font-size:13px;flex:none}',
     '.hmrd-media{display:grid;gap:10px}.hmrd-media figure{margin:0;border-radius:16px;overflow:hidden;border:1px solid var(--d-line);background:#000}.hmrd-media video,.hmrd-media img{display:block;width:100%;height:auto;max-height:46vh;object-fit:contain;background:#000}.hmrd-media figcaption{padding:8px 10px;background:var(--d-bg);font-size:13px}',
+    '.hmrd-about{display:grid;gap:10px;margin:4px 0 14px}.hmrd-f{display:grid;gap:6px;margin:0;padding:0;border:0;color:var(--d-fg);font-size:14px;font-weight:700}.hmrd-f legend{padding:0;margin-bottom:6px}',
+    '.hmrd-f input[type=text],.hmrd-f input[type=number]{min-height:44px;padding:0 12px;border-radius:12px;border:1px solid var(--d-line);background:var(--d-tile);color:var(--d-fg);font:inherit;font-weight:500}',
+    '.hmrd-opts{display:flex;flex-wrap:wrap;gap:8px}.hmrd-opts label{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 12px;border-radius:999px;border:1px solid var(--d-line);background:var(--d-tile);font-weight:600;cursor:pointer}',
+    '.hmrd-err:empty{display:none}.hmrd-err{color:#ffb4b4}',
+    '.hmrd-save{justify-self:start;min-height:44px;padding:0 18px;border-radius:999px;border:0;background:var(--d-acc);color:#111;font-weight:800;font-size:14px}',
+    '.hmrd-egg{margin:6px 0 14px}.hmrd-eggbtn{display:block;width:100%;min-height:52px;padding:12px 14px;border-radius:16px;border:0;background:var(--d-grad);color:#fff;font-weight:800;font-size:14px;line-height:1.35;text-align:center;text-decoration:none}',
+    '.hmrd-inv{padding:14px;border-radius:16px;border:1px solid var(--d-line);background:var(--d-tile)}.hmrd-inv .hmrd-p{color:var(--d-fg)}.hmrd-enter{margin-top:6px}',
     '@media (prefers-reduced-motion:reduce){.hmrd,.hmrs,.hmrd-veil{transition:none}}',
     '@media (max-width:360px){.hmrd-act{font-size:11.5px;min-height:72px}.hmrd-act .ic{width:36px;height:36px}.hmrd-tile{min-height:96px;padding:10px}}'
   ].join('');
@@ -622,10 +630,68 @@
     var u = location.href; try { var U = new URL(u); U.searchParams.delete('hmrlook'); U.searchParams.delete('design'); u = U.toString(); } catch (e) { }
     try { if (u === location.href) location.reload(); else location.replace(u); } catch (e) { location.reload(); }
   }
+  // ---- Log in: a few questions about you (stored on this device only). A visitor who shares enough and says they are
+  // open to new ideas about reality earns a hidden invitation to universemodel.ai. Nobody else ever sees it.
+  var ABOUT_KEY = 'hmr-about-v1', EGG_URL = 'https://universemodel.ai/', EGG_MIN = 3;
+  function aboutGet() { var o = jget(ABOUT_KEY, null); return (o && typeof o === 'object') ? o : {}; }
+  function aboutCount(o) {
+    var n = 0;
+    if (o.name && String(o.name).trim()) n++;
+    if (o.why && String(o.why).trim().length >= 3) n++;
+    if (o.ai) n++;
+    if (o.family) n++;
+    if (o.by) n++;
+    // personaldash.life / claudebomb.com first-visit panel answers on this same site also count
+    var p = jget('cbProfile', null);
+    if (p && typeof p === 'object') { if (!o.ai && p.tier) n++; if (!o.family && p.parent && p.parent !== 'skip') n++; if (!o.by && p.by) n++; if (p.ai && p.ai.length) n++; if (p.plan) n++; }
+    return n;
+  }
+  function eggEarned() { var o = aboutGet(); return o.reality === 'yes' && aboutCount(o) >= EGG_MIN && !/(^|\.)universemodel\.ai$/i.test(location.hostname); }
   function login(b) {
     b.appendChild(el('span', 'hmrd-soon', 'Coming soon'));
-    b.appendChild(el('p', 'hmrd-p', 'Soon you can log in so your look and settings follow you to every HMR family site, on any device. Logging in will be quick and simple.'));
-    b.appendChild(el('p', 'hmrd-p', 'Until then, everything you choose is saved in this browser, on this site, and nothing is needed from you.'));
+    b.appendChild(el('p', 'hmrd-p', 'Soon you can log in so your look and settings follow you to every HMR family site, on any device.'));
+    b.appendChild(el('p', 'hmrd-p', 'While you wait, tell us a little about you. Every question is optional. Your answers stay in this browser, on this site, and are never sent to us.'));
+    var o = aboutGet(), f = el('form', 'hmrd-about'); f.noValidate = true;
+    function txt(id, label, val, ph, type) { var w = el('label', 'hmrd-f'); w.appendChild(el('span', '', label)); var i = el('input'); i.type = type || 'text'; i.name = id; i.value = val || ''; if (ph) i.placeholder = ph; if (type === 'number') { i.inputMode = 'numeric'; i.min = '1900'; } w.appendChild(i); f.appendChild(w); return i; }
+    function pick(id, label, opts, val) { var fs = el('fieldset', 'hmrd-f'); fs.appendChild(el('legend', '', label)); var r = el('div', 'hmrd-opts'); opts.forEach(function (x) { var l = el('label'); var i = el('input'); i.type = 'radio'; i.name = id; i.value = x[0]; i.checked = val === x[0]; l.appendChild(i); l.appendChild(doc.createTextNode(' ' + x[1])); r.appendChild(l); }); fs.appendChild(r); f.appendChild(fs); }
+    txt('name', 'Your first name', o.name, 'First name');
+    txt('why', 'What brings you here?', o.why, 'A few words');
+    pick('ai', 'How much do you use AI?', [['new', 'New to it'], ['some', 'Some'], ['lots', 'A lot']], o.ai);
+    pick('family', 'Are you a parent or grandparent?', [['parent', 'Parent'], ['grandparent', 'Grandparent'], ['both', 'Both'], ['no', 'No']], o.family);
+    txt('by', 'Birth year', o.by || '', '1984', 'number');
+    pick('reality', 'Are you open to new ideas about reality?', [['yes', 'Yes'], ['no', 'No']], o.reality);
+    var err = el('p', 'hmrd-p hmrd-err'); err.setAttribute('role', 'alert'); f.appendChild(err);
+    var go = btn('hmrd-save', 'Save my answers'); go.type = 'submit'; f.appendChild(go);
+    b.appendChild(f);
+    var egg = el('div', 'hmrd-egg'); b.appendChild(egg);
+    function drawEgg() {
+      egg.textContent = ''; if (!eggEarned()) return;
+      var e = btn('hmrd-eggbtn', "Feeling dangerous? Enter a world you didn't expect when you woke up this morning.");
+      e.addEventListener('click', function () {
+        egg.textContent = '';
+        var c = el('div', 'hmrd-inv');
+        c.appendChild(el('p', 'hmrd-p', 'Not everybody gets this link.'));
+        c.appendChild(el('p', 'hmrd-p', 'You said you are open to new ideas about reality, and you freely shared something about yourself. To us, that means you are not entirely a stranger.'));
+        c.appendChild(el('p', 'hmrd-p', 'So we would like to invite you to experience an idea that can change the world in ways no artificial intelligence can: a vision of a sensible world where humans experience a shared reality for the first time.'));
+        c.appendChild(el('p', 'hmrd-p', 'It is centered on community, sharing, openness, and a shared mission to elevate humanity together, as a team. It comes with a promise not to corrupt progress by hoarding money or resources, like information that can elevate others, or by forcing people to watch ads.'));
+        c.appendChild(el('p', 'hmrd-p', 'We are forging the path to this world now. The site you are about to enter is the basis for our system of values.'));
+        var a = el('a', 'hmrd-eggbtn hmrd-enter', 'Enter'); a.href = EGG_URL; c.appendChild(a);
+        egg.appendChild(c); try { a.focus({ preventScroll: true }); } catch (x) { }
+      });
+      egg.appendChild(e);
+    }
+    f.addEventListener('submit', function (ev) {
+      ev.preventDefault(); err.textContent = '';
+      var g = function (n) { var x = f.querySelector('input[name="' + n + '"]:checked'); return x ? x.value : ''; };
+      var by = String(f.elements.by.value || '').trim(), yr = 0;
+      if (by) { yr = /^\d{4}$/.test(by) ? +by : 0; if (!yr || yr < 1900 || yr > new Date().getFullYear()) { err.textContent = 'Birth year should be four digits, like 1984. You can also leave it blank.'; return; } }
+      var n = { name: String(f.elements.name.value || '').trim().slice(0, 60), why: String(f.elements.why.value || '').trim().slice(0, 300), ai: g('ai'), family: g('family'), by: yr, reality: g('reality'), t: Date.now() };
+      lsSet(ABOUT_KEY, JSON.stringify(n));
+      var was = !!egg.firstChild; drawEgg();
+      if (egg.firstChild && !was) { try { egg.firstChild.focus({ preventScroll: true }); } catch (x) { } }
+      toast('Saved in this browser. Thank you.');
+    });
+    drawEgg();
     var l = el('div', 'hmrd-list'), D = dock();
     if (D.openFeedback) l.appendChild(item('write', 'Tell us what you want from an account', 'Your ideas shape how logging in works', then(function () { D.openFeedback(); })));
     l.appendChild(item('settings', 'Your settings', 'See or reset what is saved here', function () { show('settings'); }));
