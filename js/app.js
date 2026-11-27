@@ -56,8 +56,8 @@
     var ta = el("textarea", { id: "pk-note", maxlength: "500" }); ta.value = r.note || "";
     ta.addEventListener("input", function () { ratings[design] = ratings[design] || {}; ratings[design].note = ta.value; save(); });
     panel.appendChild(tl); panel.appendChild(ta);
-    var cp = el("button", { type: "button", "class": "btn primary", text: "Copy all ratings" });
-    cp.addEventListener("click", copyAll);
+    var cp = el("button", { type: "button", "class": "btn primary", text: "Submit" });
+    cp.addEventListener("click", function () { if (!hmrSubmit(cp, summary)) copyAll(); });
     panel.appendChild(el("p", {}, [cp]));
     panel.appendChild(el("p", { "class": "pk-msg", id: "pk-msg", role: "status" }));
   }
@@ -69,6 +69,7 @@
     });
     return out.join("\n");
   }
+  function hmrSubmit(b, txt) { var D = window.HMRDock; if (!D || !D.submitBox || !b.parentNode) return false; var bx = D.submitBox({ text: txt, kind: 'design ratings' }); b.parentNode.insertBefore(bx, b.nextSibling); b.hidden = true; return true; }   // Submit with my email / Submit anonymously (the shared dock)
   function copyAll() {
     var t = summary();
     function fallback() {
