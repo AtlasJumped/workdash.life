@@ -1,4 +1,8 @@
-/* ELV8 dock v6.9.0 (Nov 27, Leo's Nov 26 asks): the default bar is the ELV8 button with four arrows and the mic, no browser back / forward buttons;
+/* ELV8 dock v6.9.1 (Nov 27 audit): the "Add a demo?" cards show only in the owner's edit mode (open a page with ?edit=1 once on that site; ?edit=0 turns it off),
+   never to visitors; the dashboard's intro note keeps its own colors on every site (readable); the dashboard's quick-button row wraps instead of running off
+   the edge at 375 px; on phones the dock steps out of the way while it would cover one of the page's buttons on the first screen, and comes back once
+   the page scrolls; the joystick's screen-reader label is "ELV8 joystick".
+   (was ELV8 dock v6.9.0 (Nov 27, Leo's Nov 26 asks): the default bar is the ELV8 button with four arrows and the mic, no browser back / forward buttons;
    "ELV8" on the centre button; arrows grey when they cannot move the page, with bigger tap areas centred on each tip; forward grey when nothing is ahead;
    React in the rainbow colours everywhere; thumb layouts (back, React, mic, forward next to a plain ELV8 button) with a "Shuffle buttons" label;
    ribbon: a yellow heart and "elevat.ing family of websites", linking to elevat.ing; no trackers of any kind (Microsoft Clarity removed);
@@ -1518,7 +1522,7 @@
   // v6.5: the HMR button opens the HMR family experience dashboard (hmr-dash.js, same folder as this file, loaded on first press)
   var hmrBtn = mkPill('hmr-hmrbtn', 'hmr-hmr', 'ELV8: open your elevating family experience dashboard', '<span class="hmr-hmrt">ELV8</span>');
   hmrBtn.title = 'ELV8: your dashboard'; hmrBtn.setAttribute('aria-haspopup', 'dialog'); hmrBtn.setAttribute('aria-expanded', 'false'); hmrBtn.setAttribute('aria-controls', 'hmr-dash');
-  var DASHSRC = (function () { try { var u = new URL((script && script.src) || '', location.href); u.pathname = u.pathname.replace(/[^\/]*$/, 'hmr-dash.js'); u.search = '?v=6.9.0'; u.hash = ''; return u.toString(); } catch (e) { return ''; } })();
+  var DASHSRC = (function () { try { var u = new URL((script && script.src) || '', location.href); u.pathname = u.pathname.replace(/[^\/]*$/, 'hmr-dash.js'); u.search = '?v=6.9.1'; u.hash = ''; return u.toString(); } catch (e) { return ''; } })();
   var dashState = 0, dashWait = [];   // 0 not loaded, 1 loading, 2 ready, 3 failed
   function loadDash(cb) {
     if (window.HMRDash) { dashState = 2; if (cb) cb(); return; }
@@ -3398,7 +3402,8 @@
       'html:is(.hmr-lay-joy,.hmr-lay-joyr){--hmr-dockh:116px}@media (max-width:480px){html:is(.hmr-lay-joy,.hmr-lay-joyr){--hmr-dockh:104px}}@media (max-width:374px){html:is(.hmr-lay-joy,.hmr-lay-joyr){--hmr-dockh:90px}}',
       '@media (max-width:719px){html .hmrd:not(.hmrd-moved){bottom:calc(' + BASE + ' + var(--hmr-dockh) + 8px)!important;left:6px!important;right:6px!important;border-radius:22px!important;border-bottom:1px solid var(--d-line)!important;max-height:calc(100dvh - ' + BASE + ' - var(--hmr-dockh) - 24px)!important;padding-bottom:12px!important}html .hmrd-toast{bottom:calc(' + BASE + ' + var(--hmr-dockh) + 14px)!important}}',
       '@media (min-width:760px){.hmrs{width:min(1040px,calc(100vw - 32px))!important;margin-left:calc(min(1040px,calc(100vw - 32px)) / -2)!important}}',
-      '.hmrd-row:has(>[data-k="btn-shuffle"]){grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}',
+      '.hmrd-row:has(>[data-k="btn-shuffle"]){grid-template-columns:repeat(auto-fit,minmax(min(100%,60px),1fr));gap:6px}',   // v6.9.1: five across where they fit, and a second line on narrow phones (no button cut off)
+      '@media (max-width:420px){.hmrd-row:has(>[data-k="btn-shuffle"]) .hmrd-act{font-size:11.5px;padding:8px 2px}.hmrd-row:has(>[data-k="btn-shuffle"]) .hmrd-act .ic{width:36px;height:36px}}',
       '@media (prefers-reduced-motion:reduce){.hmr-pa path{transition:none}}'
     ].join('');
     function addCss() { if (!css.parentNode && doc.head) doc.head.appendChild(css); }
@@ -3564,15 +3569,20 @@
 /* HMR dock v6.6.0 edit mode: "Add a demo?" cards (Leo, Nov 25: the HMR sites are in edit mode by him).
    On each page the dock finds spots where a demo could help (forms, tools, sections with controls) that have no demo yet, and puts a small square
    card at the spot's top right: "Add a demo?" with Yes and No. An answer is sent with the dock's send() (kind 'demo', page, spot name) and the card
-   goes away on this device (localStorage 'hmr-demo-ans'). Turn off: EDIT_MODE = false below, ?edit=0 in the address, or localStorage 'hmr-edit-off' = '1'.
+   goes away on this device (localStorage 'hmr-demo-ans'). v6.9.1: shown only in the owner's edit mode: ?edit=1 in the address turns it on for that site
+   in that browser, ?edit=0 turns it off; visitors never see the cards. EDIT_MODE = false below turns the feature off everywhere.
    A page can mark a spot with data-demo-spot="Name", or opt out with data-demo="none". */
 (function () {
   'use strict';
-  var EDIT_MODE = true, MAX = 8, KEY = 'hmr-demo-ans', doc = document;
+  var EDIT_MODE = true, MAX = 8, KEY = 'hmr-demo-ans', ON = 'hmr-edit-on', doc = document;
   if (!EDIT_MODE || window.__hmrDemoSpots) return; window.__hmrDemoSpots = 1;
   function lg(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
   function ls(k, v) { try { localStorage.setItem(k, v); } catch (e) { } }
-  if (/[?&]edit=0\b/.test(location.search) || lg('hmr-edit-off') === '1') return;
+  // v6.9.1 (audit Nov 27): owner only. Visitors never see the cards. The owner turns edit mode on for one site, in one browser, by opening any of its
+  //   pages with ?edit=1 (kept in localStorage 'hmr-edit-on'); ?edit=0 turns it off again.
+  if (/[?&]edit=1\b/.test(location.search)) ls(ON, '1');
+  if (/[?&]edit=0\b/.test(location.search)) { try { localStorage.removeItem(ON); } catch (e) { } }
+  if (lg(ON) !== '1' || lg('hmr-edit-off') === '1') return;
   var answered = {}; try { answered = JSON.parse(lg(KEY) || '{}') || {}; } catch (e) { answered = {}; }
   var SKIPIN = '#hmr-dock,[class^="hmr-"],[class*=" hmr-"],[id^="hmr-"],nav,header,footer,[role="dialog"],dialog,[aria-hidden="true"]';
   var HASDEMO = '[data-demo="none"],.demo,[id*="demo" i],[class*="demo" i],video,iframe[src*="youtube"],iframe[src*="vimeo"]';
@@ -3653,4 +3663,63 @@
     window.HMRDemoSpots = { list: function () { return cards.map(function (c) { return c.name; }); }, reset: function () { ls(KEY, '{}'); } };
   }
   if (doc.readyState === 'complete') setTimeout(run, 600); else addEventListener('load', function () { setTimeout(run, 600); });
+})();
+
+/* ELV8 dock v6.9.1 (audit Nov 27): on phones the dock never sits on one of the page's own buttons on the first screen (workdash.life's
+   "Help build the work dashboard" was under the joystick). While the page is at its top and a visible page button (or a button in a page's
+   own pop-up) would be under the dock, the dock slides down out of the way; once the visitor scrolls, or the button is no longer under it,
+   the dock comes back. It only steps aside on pages that can scroll, so a short page always keeps its dock, and never while the dashboard
+   is open or the mic is recording. */
+(function () {
+  'use strict';
+  if (window.name === 'hmr-embed' || window.__hmrYield) return; window.__hmrYield = 1;
+  var doc = document, root = doc.documentElement, CLS = 'hmr-yield', TOP = 40, PHONE = 720;
+  var BTN = 'button,[role="button"],input[type="submit"],input[type="button"],a.btn,a.button,a[class*="btn"],a[class*="cta"],a[class*="button"],.btn,.button,.cta';
+  var SKIP = '#hmr-dock,[data-hmr-ui],[class^="hmr-"],[class*=" hmr-"],[id^="hmr-"],nav,footer,[aria-hidden="true"],[hidden]';
+  var BUSY = '#hmr-dash.on,#hmr-speak[aria-expanded="true"],.hmr-dragging';
+  var css = doc.createElement('style'); css.id = 'hmr-yield-css';
+  css.textContent = '.hmr-dock{transition:transform .25s ease,visibility 0s}' +
+    'html.hmr-yield .hmr-dock{transform:translateY(calc(100% + 180px))!important;visibility:hidden!important;transition:transform .25s ease,visibility 0s .25s}' +
+    '@media (prefers-reduced-motion:reduce){.hmr-dock,html.hmr-yield .hmr-dock{transition:none!important}}';
+  function skipped(e) { for (var n = e; n && n !== doc.body && n !== root; n = n.parentElement) { try { if (n.matches(SKIP)) return true; } catch (x) { return true; } } return false; }   // html and body carry hmr- classes, so they are not tested
+  function shown(e) {
+    if (e.checkVisibility) { try { if (!e.checkVisibility({ opacityProperty: true, visibilityProperty: true })) return false; } catch (x) { } }
+    var cs = getComputedStyle(e); return cs.visibility !== 'hidden' && cs.display !== 'none' && +cs.opacity !== 0;
+  }
+  function dockRects(d) {
+    var y = root.classList.contains(CLS), out = [];
+    if (y) { d.style.transition = 'none'; root.classList.remove(CLS); }
+    [].forEach.call(d.children, function (c) { var r = c.getBoundingClientRect(); if (r.width > 4 && r.height > 4 && getComputedStyle(c).display !== 'none') out.push(r); });
+    if (y) { root.classList.add(CLS); void d.offsetWidth; d.style.transition = ''; }
+    return out;
+  }
+  function hit(a, b) { return a.left < b.right - 2 && a.right > b.left + 2 && a.top < b.bottom - 2 && a.bottom > b.top + 2; }
+  function covers() {
+    var d = doc.getElementById('hmr-dock'); if (!d || !doc.body) return false;
+    if (innerWidth >= PHONE || (scrollY || root.scrollTop || 0) > TOP) return false;
+    if (Math.max(0, (root.scrollHeight || 0) - innerHeight) < 80) return false;   // nothing to scroll: keep the dock
+    if (doc.querySelector(BUSY)) return false;
+    var dr = dockRects(d); if (!dr.length) return false;
+    var top = innerHeight; dr.forEach(function (r) { if (r.top < top) top = r.top; });
+    var list = doc.querySelectorAll(BTN);
+    for (var i = 0; i < list.length; i++) {
+      var e = list[i], r = e.getBoundingClientRect();
+      if (r.bottom <= top || r.top >= innerHeight || r.width < 8 || r.height < 8) continue;   // only what sits as low as the dock, on this screen
+      if (skipped(e) || !shown(e)) continue;
+      for (var j = 0; j < dr.length; j++) if (hit(r, dr[j])) return true;
+    }
+    return false;
+  }
+  var queued = 0;
+  function check() {
+    queued = 0;
+    if (!css.parentNode && doc.head) doc.head.appendChild(css);
+    var y = false; try { y = covers(); } catch (e) { y = false; }
+    root.classList.toggle(CLS, y);
+  }
+  function soon() { if (!queued) { queued = 1; (window.requestAnimationFrame || setTimeout)(check); } }
+  addEventListener('scroll', soon, { passive: true }); addEventListener('resize', soon); addEventListener('orientationchange', soon); addEventListener('pageshow', soon);
+  addEventListener('click', function () { setTimeout(check, 350); }, true);
+  function start() { check(); [400, 1500, 4000].forEach(function (t) { setTimeout(check, t); }); }
+  if (doc.readyState === 'complete') start(); else addEventListener('load', start);
 })();

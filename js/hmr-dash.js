@@ -1,4 +1,6 @@
-/* ELV8 dash v1.9 (Nov 27, Leo's Nov 26 asks): title "Your elevating family experience dashboard" with a line on what it is; the header mark reads ELV8
+/* ELV8 dash v1.9.1 (Nov 27 audit): the intro's "Don't show this again" note has its own class and colors, so no page style can paint over it;
+   the Right now row wraps on narrow phones instead of running off the edge.
+   (was ELV8 dash v1.9 (Nov 27, Leo's Nov 26 asks): title "Your elevating family experience dashboard" with a line on what it is; the header mark reads ELV8
    and opens elevat.ing; only "Don't show this again" on the intro; "Your look is on" sits next to a "Switch to our look" button; Bigger text steps
    100, 125, 140, 160% and enlarges the page text behind the dashboard; "Go back" after Back to top reopens the dashboard; Places lists the
    elevat.ing family of websites (no HMR sites outside the HMR sites); "I'm having trouble" help; "Request a button"; a red "Are you sure?" reset;
@@ -358,13 +360,14 @@
     '.hmrd-foot{flex-wrap:wrap}.hmrd-foot>span:last-child{display:inline-flex;gap:6px}.hmrd-lk{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap}.hmrd-our{min-height:36px!important;padding:0 12px!important;font-size:12.5px!important;font-weight:800}',
     '.hmrd-body{overflow:auto;overscroll-behavior:contain;padding:2px 2px 4px;margin:0 -2px}',
     '.hmrd-intro{position:relative;margin:4px 0 12px;padding:14px;border-radius:18px;background:linear-gradient(135deg,rgba(224,48,122,.22),rgba(245,158,11,.14) 50%,rgba(6,182,212,.18));border:1px solid var(--d-line)}',
-    '.hmrd-intro h3{margin:0 0 6px;font-size:17px;font-weight:800;color:#fff}.hmrd-intro p{margin:0 0 10px;color:#e7e8f2;font-size:14.5px;line-height:1.45}',
-    '.hmrd-intro .row{display:flex;gap:8px;flex-wrap:wrap}.hmrd-intro .why{margin:8px 0 0;font-size:12.5px;color:var(--d-mut);line-height:1.4}',
+    '.hmrd-intro h3{margin:0 0 6px;font-size:17px;font-weight:800;color:#fff;background:none}.hmrd-intro p{margin:0 0 10px;padding:0;border:0;background:none;color:#e7e8f2;font-size:14.5px;line-height:1.45}',
+    '.hmrd-intro .row{display:flex;gap:8px;flex-wrap:wrap}.hmrd-intro .hmrd-why{margin:8px 0 0;padding:0;border:0;box-shadow:none;background:none!important;font-size:13px;color:#dfe2f0!important;line-height:1.45}',   // v1.9.1: own class, so a page's .why style (claudebomb) cannot paint it
     '.hmrd-pill{min-height:44px;padding:0 14px;border-radius:999px;border:1px solid var(--d-line);background:rgba(255,255,255,.12);font-weight:700;font-size:14px}',
     '.hmrd-pill.pri{background:#fff;color:#111;border-color:#fff}',
     '.hmrd-sec{margin:10px 2px 6px;font-size:11.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--d-mut)}',
-    '.hmrd-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}',
+    '.hmrd-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,68px),1fr));gap:8px}',   // v1.9.1: wraps on narrow phones instead of running off the edge
     '.hmrd-act{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:78px;padding:8px 4px;border-radius:18px;border:1px solid var(--d-line);background:var(--d-tile);font-size:12.5px;font-weight:700;text-align:center}',
+    '[data-hmr-ui] .hmrd-act{width:auto!important;min-width:0!important;max-width:100%;white-space:normal!important}[data-hmr-ui] .hmrd-act>span:not(.ic){display:block;max-width:100%;overflow-wrap:break-word;hyphens:auto}',
     '.hmrd-act:hover{background:var(--d-tile2)}.hmrd-act[aria-pressed="true"]{background:rgba(245,158,11,.2);border-color:rgba(245,158,11,.6)}',
     '.hmrd-act .ic{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.09)}',
     '.hmrd-go{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}@media (min-width:520px){.hmrd-go{grid-template-columns:repeat(4,minmax(0,1fr))}}',
@@ -539,7 +542,7 @@
       var r = el('div', 'row'), no = btn('hmrd-pill pri', C('dontShowLabel', 'Don\'t show this again'));
       no.addEventListener('click', function () { lsSet(INTRO_KEY, '1'); it.remove(); refocus(); toast('Done. You can bring the intro back in Your settings.'); });
       r.appendChild(no); it.appendChild(r);
-      it.appendChild(el('p', 'why', C('dontShowExplain', 'Don\'t show this again means the dashboard opens straight to its buttons next time. It is saved only in this browser, on this site, and you can bring the intro back in Your settings.')));
+      it.appendChild(el('p', 'hmrd-why', C('dontShowExplain', 'Don\'t show this again means the dashboard opens straight to its buttons next time. It is saved only in this browser, on this site, and you can bring the intro back in Your settings.')));
       b.appendChild(it);
     }
     var r1 = el('div', 'hmrd-row');
