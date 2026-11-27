@@ -3348,7 +3348,7 @@
       { d: 'down', rot: 180, c: ['#06b6d4', '#3b82f6'], label: 'Down: tap to jump to the bottom, hold to scroll down' },
       { d: 'left', rot: 270, c: ['#8b5cf6', '#e0307a'], label: 'Left: tap for the previous section, hold to keep going' }
     ];
-    var pad = el('div', 'hmr-pad'); pad.id = 'hmr-pad'; pad.setAttribute('role', 'group'); pad.setAttribute('aria-label', 'HMR joystick');
+    var pad = el('div', 'hmr-pad'); pad.id = 'hmr-pad'; pad.setAttribute('role', 'group'); pad.setAttribute('aria-label', 'ELV8 joystick');
     DIRS.forEach(function (o, i) {
       var b = el('button', 'hmr-pa'); b.type = 'button'; b.setAttribute('data-d', o.d); b.setAttribute('aria-label', o.label); b.title = o.label;
       b.innerHTML = '<svg viewBox="-50 -50 100 100" aria-hidden="true" focusable="false"><defs><linearGradient id="hmrpg' + i + '" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="' + o.c[0] + '"/><stop offset="1" stop-color="' + o.c[1] + '"/></linearGradient></defs>' +
