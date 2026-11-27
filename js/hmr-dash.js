@@ -1,4 +1,5 @@
-/* ELV8 dash v1.9.1 (Nov 27 audit): the intro's "Don't show this again" note has its own class and colors, so no page style can paint over it;
+/* ELV8 dash v1.9.2 (Nov 27, with dock v6.10.0): the create-a-login note no longer carries an ad-like line.
+   (was ELV8 dash v1.9.1 (Nov 27 audit): the intro's "Don't show this again" note has its own class and colors, so no page style can paint over it;
    the Right now row wraps on narrow phones instead of running off the edge.
    (was ELV8 dash v1.9 (Nov 27, Leo's Nov 26 asks): title "Your elevating family experience dashboard" with a line on what it is; the header mark reads ELV8
    and opens elevat.ing; only "Don't show this again" on the intro; "Your look is on" sits next to a "Switch to our look" button; Bigger text steps
@@ -749,7 +750,7 @@
           seg.appendChild(sb);
         });
         box.appendChild(seg);
-        box.appendChild(el('p', 'hmrd-p', up ? 'Create one free account for every ' + ACSITES + '. No ads, ever.' : 'Log in with your ' + ACCT + '. The same email and password work on every ' + ACSITES + '.'));
+        box.appendChild(el('p', 'hmrd-p', up ? 'Create one free account for every ' + ACSITES + '.' : 'Log in with your ' + ACCT + '. The same email and password work on every ' + ACSITES + '.'));
         var em = field(f, 'email', 'Email', 'email', 'email');
         var pw = field(f, 'password', up ? 'Password (at least 8 characters)' : 'Password', 'password', up ? 'new-password' : 'current-password');
         f.appendChild(msg);

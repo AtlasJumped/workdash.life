@@ -1,4 +1,11 @@
-/* ELV8 dock v6.9.1 (Nov 27 audit): the "Add a demo?" cards show only in the owner's edit mode (open a page with ?edit=1 once on that site; ?edit=0 turns it off),
+/* ELV8 dock v6.10.2 (Nov 27, Leo's 17:57Z review, his latest word): ONE button standard on every site: React on the left, ELV8 in the middle, the mic on the right;
+   no browser back / forward buttons and no layout choices or Shuffle. No "always free" line under the ribbon or in the mic window.
+   React panel: no "How does this make you feel?", no "two-way deal" line, no "Send my rating"; the slider stays and its value goes with the reaction;
+   reactions grouped positive then negative, last row a full-width "Burn it all" in darker red; about half the height on phones.
+   Dragons: three small simple dragons that fly straight across the screen; "Burn it all" brings them.
+   Mic: press it and it starts at once, turns red, and a small window shows the words as they are said (the bottom third of the screen on phones);
+   tap into the words to edit (the window grows); buttons: Submit anonymously, Create a login, Log in (logged in: Submit).
+   (was ELV8 dock v6.9.1 (Nov 27 audit): the "Add a demo?" cards show only in the owner's edit mode (open a page with ?edit=1 once on that site; ?edit=0 turns it off),
    never to visitors; the dashboard's intro note keeps its own colors on every site (readable); the dashboard's quick-button row wraps instead of running off
    the edge at 375 px; on phones the dock steps out of the way while it would cover one of the page's buttons on the first screen, and comes back once
    the page scrolls; the joystick's screen-reader label is "ELV8 joystick".
@@ -56,7 +63,6 @@
    Storage is always inside try/catch. */
 (function () {
   'use strict';
-  var FREE_LINE = 'Always free forever. Nothing we make will ever ask you to pay. It will be your choice if you want to purchase any of the tools we recommend.';
   var FORM_KEY = '436d16c6-bfff-4931-aace-95f12a6726ad';   // web3forms access key; also read from window.HMR_FORM_KEY. Empty means Send falls back to the visitor's email app.
   if (window.HMRDock) {
     if ((window.HMRDock.version || 0) >= 6.1) return;
@@ -103,7 +109,7 @@
     '.hmr-rxp .st{margin:0 0 7px;font-size:12px;color:#333;min-height:1.3em}' +
     '.hmr-rxp .hmr-deal{margin:0 0 7px;font-size:12px;line-height:1.3;color:#14532d;background:#ecfdf5;border:1px solid #86efac;border-radius:8px;padding:6px 8px}' +
     '.hmr-rxp .hmr-rxrate{margin:0 0 6px}.hmr-rxp .hmr-sendr{width:100%;min-height:34px;margin:0 0 8px;border:1px solid #1d4ed8;background:#1d4ed8;color:#fff;border-radius:8px;font-size:12.5px;font-weight:700;cursor:pointer}' +
-    '.hmr-rxp .grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}' +
+    '.hmr-rxp .grid{display:flex;flex-wrap:wrap;gap:5px}.hmr-rxp .grid .chip{flex:1 1 calc(50% - 5px);min-width:0}.hmr-rxp .grid .chip.neg:not(.neg ~ .neg){margin-top:6px}.hmr-rxp .grid .chip.burn{flex:1 1 100%!important;background:#7f1d1d!important;border-color:#450a0a!important;color:#fff!important;font-weight:800}.hmr-rxp .hmr-vh{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}.hmr-rxp .hd{justify-content:flex-end;margin:0;min-height:0}.hmr-rxp .hd .x{min-height:28px}' +
     '.hmr-rxp .chip{min-height:34px;border:1px solid #cfd6e4;background:#f4f7fc;color:#111;border-radius:10px;font-size:12.5px;font-weight:600;cursor:pointer;padding:0 6px;text-align:center;white-space:normal;line-height:1.1}' +
     '.hmr-rxp .chip.neg{background:#fff1ef;border-color:#efc2bb}.hmr-rxp .chip.pos{background:#fff8e1;border-color:#ecd48a}' +
     '.hmr-rxp .chip:hover{filter:brightness(.95)}' +
@@ -125,7 +131,7 @@
         ds.split(',').join('[hidden],') + '[hidden]{display:none!important}' +
         ds.split(',').join(' svg,') + ' svg{width:20px!important;height:20px!important}' : '') +
     (ps ? ps + '{position:fixed!important;left:' + LEFT + '!important;right:auto!important;top:auto!important;bottom:calc(' + BASE + ' + var(--hmr-c) + 10px)!important;z-index:99991!important;max-width:calc(100vw - 24px)!important;max-height:calc(100vh - 110px)!important;overflow:auto!important;margin:0!important}' : '') +
-    '@media (max-width:600px){.hmr-rxp{left:' + LEFT + ';right:' + RIGHT + ';width:auto;max-height:min(46vh,calc(100vh - 110px))}.hmr-rxp .grid{grid-template-columns:1fr 1fr 1fr}.hmr-rxp .chip{min-height:32px;font-size:12px}}' +
+    '@media (max-width:600px){.hmr-rxp{left:' + LEFT + ';right:' + RIGHT + ';width:auto;max-height:max(150px,min(24vh,calc(100vh - 110px)))}.hmr-rxp .grid .chip{flex:1 1 calc(33.333% - 5px);min-height:32px;font-size:12px}.hmr-rxp{padding:7px 9px}.hmr-rxp .hd{position:absolute;top:4px;right:4px;z-index:1}.hmr-rxp .st{margin:0 0 4px;padding-right:34px;font-size:11.5px;line-height:1.25}}' +
     '.rx-bar{position:absolute!important;left:-9999px!important;width:1px!important;height:1px!important;overflow:hidden!important;opacity:0!important;pointer-events:none!important}';
 
   function cursorURL() {
@@ -181,10 +187,10 @@
   // ------------------------------------------------------------------ React: log, target, panel
   var LOGKEY = 'hmr-react-log-v1', TIPKEY = 'hmr-react-tip-off';
   var NEG = { 'Dislike': 1, 'Mad': 1, 'Sad': 1, 'Worried': 1, 'Afraid': 1, 'Confused': 1, 'Skeptical': 1, 'Disappointed': 1, 'Frustrated': 1, 'Burn it all': 1, 'Dragons burn it all': 1 };
-  var DEFAULT_EMOTIONS = ['Mad', 'Excited', 'Sad', 'Happy', 'Worried', 'Hopeful', 'Confused', 'Curious', 'Frustrated', 'Inspired', 'Disappointed', 'Grateful', 'Skeptical', 'Amazed', 'Burn it all', 'Dragons'];   // two columns: the negative reaction of each pair on the left, the positive one on the right
+  var DEFAULT_EMOTIONS = ['Happy', 'Excited', 'Hopeful', 'Curious', 'Inspired', 'Grateful', 'Amazed', 'Dragons', 'Mad', 'Sad', 'Worried', 'Confused', 'Frustrated', 'Disappointed', 'Skeptical', 'Burn it all'];   // two columns: the negative reaction of each pair on the left, the positive one on the right
   var EMOJI = { 'Like': '👍', 'Dislike': '👎', 'Mad': '😠', 'Excited': '🤩', 'Sad': '😢', 'Happy': '😊', 'Worried': '😟', 'Hopeful': '🤞', 'Confused': '😕', 'Curious': '🧐', 'Frustrated': '😤', 'Inspired': '💡', 'Disappointed': '😞', 'Grateful': '🙏', 'Skeptical': '🤨', 'Amazed': '😲', 'Afraid': '😨', 'Dragons': '🐉', 'Burn it all': '🔥', 'Dragons burn it all': '🐉' };
-  var REACT_FX = { 'Dragons': 'dragons', 'Dragons burn it all': 'dragons', 'Burn it all': 'burn' };   // chips that run one of the Funsies page animations
-  var panel = null, stEl = null, aim = false, target = null, markEl = null, tipShown = false, rxLastName = '';
+  var REACT_FX = { 'Dragons': 'dragons', 'Dragons burn it all': 'dragons', 'Burn it all': 'dragons' };   // v6.10 (Leo): Burn brings the dragons   // chips that run one of the Funsies page animations
+  var rxRate = null, panel = null, stEl = null, aim = false, target = null, markEl = null, tipShown = false, rxLastName = '';
 
   function selPath(e) {
     var parts = [], n = 0;
@@ -218,7 +224,7 @@
   }
   function readLog() { try { var a = JSON.parse(lsGet(LOGKEY) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
   function record(name, tg) {
-    var rec = { reaction: name, path: location.pathname, t: new Date().toISOString(), target: tg ? { selector: tg.selector, heading: tg.heading, text: tg.text, x: tg.x, y: tg.y } : null };
+    var rec = { reaction: name, strength: rxRate ? rxRate.get() : 0, path: location.pathname, t: new Date().toISOString(), target: tg ? { selector: tg.selector, heading: tg.heading, text: tg.text, x: tg.x, y: tg.y } : null };
     try { var a = readLog(); a.push(rec); lsSet(LOGKEY, JSON.stringify(a.slice(-200))); } catch (e) { }
     return rec;
   }
@@ -251,11 +257,14 @@
   function startAim() {
     if (aim) return; aim = true; root.classList.add('hmr-aim');
     doc.addEventListener('click', onAimClick, true);
-    setStatus(coarse() ? 'Tap the spot, then pick a reaction. Or just pick a reaction.' : 'Click the spot, then pick a reaction. Or just pick a reaction.');
+    setStatus(coarse() ? 'Tap a spot, use the slider to express how strongly you feel, and pick a reaction. Or just pick a reaction.' : 'Click a spot, use the slider to express how strongly you feel, and pick a reaction. Or just pick a reaction.');
   }
   function stopAim() { aim = false; root.classList.remove('hmr-aim'); doc.removeEventListener('click', onAimClick, true); }
 
-  function emotions() { var a = (window.hmrReact && window.hmrReact.emotions && window.hmrReact.emotions.length) ? window.hmrReact.emotions.slice() : DEFAULT_EMOTIONS; return a.filter(function (n) { return n !== 'Like' && n !== 'Dislike'; }); }   // thumbs are replaced by the hate / neutral / love slider
+  function emotions() { var a = (window.hmrReact && window.hmrReact.emotions && window.hmrReact.emotions.length) ? window.hmrReact.emotions.slice() : DEFAULT_EMOTIONS; a = a.filter(function (n) { return n !== 'Like' && n !== 'Dislike'; });
+    // v6.10 (Leo, Nov 27): positive reactions first, then negative ones, and "Burn it all" always last
+    var last = a.filter(function (n) { return /^burn it all$/i.test(n); }), pos = a.filter(function (n) { return !NEG[n] && !/^burn it all$/i.test(n); }), neg = a.filter(function (n) { return NEG[n] && !/^burn it all$/i.test(n); });
+    return pos.concat(neg, last); }   // thumbs are replaced by the hate / neutral / love slider
   function rateWord(v) { v = +v || 0; return v <= -4 ? 'Hate it' : v < 0 ? 'Dislike it' : v === 0 ? 'Neutral' : v < 4 ? 'Like it' : 'Love it'; }
   // a hate to love slider, neutral in the middle; returns { el, input, set(v), get() }
   var rsN = 0;
@@ -270,22 +279,18 @@
   }
   function buildPanel() {
     panel = el('div', 'hmr-rxp'); panel.id = 'hmr-rxp'; panel.hidden = true; panel.setAttribute('role', 'dialog'); panel.setAttribute('aria-label', 'React');
-    var hd = el('div', 'hd'); hd.appendChild(el('span', '', 'How does this make you feel?'));
+    var hd = el('div', 'hd'); hd.appendChild(el('span', '', ''));
     var x = el('button', 'x', '×'); x.type = 'button'; x.setAttribute('aria-label', 'Close reactions'); x.addEventListener('click', function () { closeRx(true); });
     hd.appendChild(x); panel.appendChild(hd);
-    hd.parentNode.insertBefore(el('p', 'hmr-deal', 'A two-way deal: your signal helps the builders improve sites for free, and you get better sites back.'), hd.nextSibling);
     var tip = el('div', 'tip'); tip.id = 'hmr-rxtip'; tip.hidden = true;
     tip.innerHTML = '<p>Click the spot you\'re reacting to, then pick a reaction. Or just pick a reaction.</p><label><input type="checkbox" id="hmr-rxtip-off"> Don\'t show this again</label>';
     tip.querySelector('input').addEventListener('change', function (ev) { if (ev.target.checked) lsSet(TIPKEY, '1'); else { try { localStorage.removeItem(TIPKEY); } catch (e) { } } });
     panel.appendChild(tip);
     stEl = el('p', 'st'); stEl.setAttribute('role', 'status'); stEl.setAttribute('aria-live', 'polite'); panel.appendChild(stEl);
-    var rs0 = rateSlider('How much do you love or hate this?'); rs0.el.classList.add('hmr-rxrate'); panel.appendChild(rs0.el);
-    var rsb = el('button', 'hmr-sendr', 'Send my rating'); rsb.type = 'button';
-    rsb.addEventListener('click', function () { var v = rs0.get(); pick(v === 0 ? 'Neutral' : (v < 0 ? 'Hate ' : 'Love ') + Math.abs(v), { neg: v < 0, plain: true }); });
-    panel.appendChild(rsb);
+    var rs0 = rateSlider('How strongly you feel'); rs0.el.classList.add('hmr-rxrate'); rs0.el.querySelector('label').className = 'hmr-vh'; panel.appendChild(rs0.el); rxRate = rs0;
     var grid = el('div', 'grid'); grid.setAttribute('role', 'group'); grid.setAttribute('aria-label', 'Reactions');
     emotions().forEach(function (n) {
-      var b = el('button', 'chip ' + (NEG[n] ? 'neg' : 'pos')); b.type = 'button'; b.setAttribute('data-e', n);
+      var b = el('button', 'chip ' + (NEG[n] ? 'neg' : 'pos') + (/^burn it all$/i.test(n) ? ' burn' : '')); b.type = 'button'; b.setAttribute('data-e', n);
       if (EMOJI[n]) { var em = el('span', '', EMOJI[n]); em.setAttribute('aria-hidden', 'true'); b.appendChild(em); b.appendChild(doc.createTextNode(' ')); }
       b.appendChild(doc.createTextNode(n));
       b.addEventListener('click', function () { pick(n); });
@@ -305,7 +310,7 @@
     stopFunsies(true); closeFz(false); closeSheet(false); closeSpeak(false); hideHlm();
     panel.hidden = false; rxBtn.setAttribute('aria-expanded', 'true');
     var tip = panel.querySelector('#hmr-rxtip');
-    if (lsGet(TIPKEY) !== '1' && !tipShown) { tip.hidden = false; tipShown = true; } else tip.hidden = true;
+    tip.hidden = true;   // v6.10: one instruction line only
     startAim();
     var f = panel.querySelector('.chip'); if (f) { try { f.focus({ preventScroll: true }); } catch (e) { f.focus(); } }
   }
@@ -705,69 +710,28 @@
   });
 
   addFx('dragons', 'Dragons', 'wreck', 'M3 18c3-1 5-6 9-6s4 3 8 2M9 12 7 6l5 4M13 12l3-6 1 6', function (S) {
-    // three original dragons, each with a rider, circling the screen and burning the page
-    return cfx(S, 12, function (L) {
-      var cx = L.cx, W = L.W, H = L.H, pool = Fx(), sc = clamp(Math.min(W, H) / 620, .6, 1.4), N = 22, scars = [], fires = [], DUR = 10.2;
+    // v6.10 (Leo, Nov 27): the simple dragons are back: three small dragons that do not flap or twist, they just fly straight across the screen,
+    //   each with a little puff of fire in front. (The earlier long dragons with riders are gone.)
+    return cfx(S, 9, function (L) {
+      var cx = L.cx, W = L.W, H = L.H, pool = Fx(), sz = clamp(Math.min(W, H) / 9, 40, 76), DUR = 6.4;
       var D = [
-        { f: [.31, .47], p: [0, 1.3], A: [.38, .28], c: '#1f7a4d', c2: '#0f3d28', bl: '#e2c56b', cape: '#c0392b', t0: .1, sx: -1, sy: .32, dir: 1, ph: 0 },
-        { f: [.27, .39], p: [2.1, .2], A: [.40, .26], c: '#a3262f', c2: '#4e1016', bl: '#f0b765', cape: '#2563eb', t0: 1.0, sx: 2, sy: .6, dir: -1, ph: 2 },
-        { f: [.36, .29], p: [4.0, 2.6], A: [.36, .30], c: '#4b3fa8', c2: '#221a5e', bl: '#c9b8ff', cape: '#eab308', t0: 1.9, sx: .5, sy: -.15, dir: 1, ph: 4 }
+        { y: .24, dir: 1, t0: .1, bob: 0 },
+        { y: .5, dir: -1, t0: .9, bob: 2 },
+        { y: .74, dir: 1, t0: 1.7, bob: 4 }
       ];
-      function raw(d, tt) {
-        var x = W * (.5 + d.A[0] * Math.sin(tt * d.f[0] * 3 + d.p[0])), y = H * (.5 + d.A[1] * Math.sin(tt * d.f[1] * 3 + d.p[1])) + Math.sin(tt * 2.3 + d.ph) * 28 * sc;
-        var sx = d.sx < 0 ? -240 * sc : d.sx > 1 ? W + 240 * sc : W * d.sx, sy = d.sx < 0 || d.sx > 1 ? H * d.sy : (d.sy < 0 ? -240 * sc : H + 240 * sc);
-        var e = ease(tt / 1.7); x = sx + (x - sx) * e; y = sy + (y - sy) * e;
-        var o = ease((tt - (DUR - 1.4)) / 1.4); if (o > 0) { var ex = d.dir > 0 ? W + 280 * sc : -280 * sc; x = x + (ex - x) * o; y = y + (-160 * sc - y) * o * .6; }
-        return [x, y];
-      }
-      function wing(d, b, fl, far, dir) {
-        var s = sc * (far ? .8 : 1.1), bx = b[0], by = b[1];
-        cx.fillStyle = far ? d.c2 : d.c; cx.strokeStyle = '#10241a'; cx.lineWidth = 1.4; cx.globalAlpha = .93;
-        cx.beginPath(); cx.moveTo(bx, by); cx.lineTo(bx - dir * 12 * s, by - 100 * s * fl); cx.quadraticCurveTo(bx - dir * 48 * s, by - 58 * s * fl, bx - dir * 92 * s, by - 66 * s * fl + 14 * s); cx.quadraticCurveTo(bx - dir * 74 * s, by - 10 * s * fl, bx - dir * 68 * s, by + 8 * s); cx.quadraticCurveTo(bx - dir * 42 * s, by - 10 * s, bx - dir * 32 * s, by + 10 * s); cx.closePath(); cx.fill(); cx.stroke(); cx.globalAlpha = 1;
-      }
-      function rider(d, p, dir, tt) {
-        var u = sc, x = p[0], y = p[1] - 11 * u, fl = Math.sin(tt * 9 + d.ph) * 4 * u;
-        cx.fillStyle = d.cape; cx.beginPath(); cx.moveTo(x - dir * 2 * u, y - 12 * u); cx.lineTo(x - dir * 30 * u, y - 4 * u + fl); cx.lineTo(x - dir * 24 * u, y + 8 * u + fl * .5); cx.lineTo(x - dir * 2 * u, y + 2 * u); cx.fill();
-        cx.fillStyle = '#2a2330'; cx.fillRect(x - 4 * u, y - 14 * u, 8 * u, 17 * u);
-        cx.fillStyle = '#d7b08a'; cx.beginPath(); cx.arc(x, y - 18 * u, 4.4 * u, 0, 6.283); cx.fill();
-        cx.fillStyle = d.c2; cx.beginPath(); cx.arc(x, y - 19 * u, 5 * u, Math.PI, 0); cx.fill(); cx.fillRect(x - 5 * u, y - 19 * u, 2 * u, 5 * u);
-        cx.strokeStyle = '#6b4a2a'; cx.lineWidth = 2 * u; cx.beginPath(); cx.moveTo(x + dir * 3 * u, y - 8 * u); cx.lineTo(x + dir * 14 * u, y - 24 * u); cx.lineTo(x + dir * 12 * u, y - 46 * u); cx.stroke();
-        cx.fillStyle = d.cape; cx.beginPath(); cx.moveTo(x + dir * 12 * u, y - 46 * u); cx.lineTo(x + dir * (12 + 18) * u, y - 42 * u + fl); cx.lineTo(x + dir * 12 * u, y - 36 * u); cx.fill();
-      }
       return function (dt, t) {
-        scars.forEach(function (s2) { s2.l -= dt; if (s2.l > 0) { cx.fillStyle = 'rgba(25,15,10,' + clamp(s2.l * .18, 0, .3).toFixed(3) + ')'; cx.beginPath(); cx.ellipse(s2.x, s2.y, s2.r, s2.r * .4, 0, 0, 6.283); cx.fill(); } });
-        scars = scars.filter(function (s2) { return s2.l > 0; });
-        for (var fi = fires.length - 1; fi >= 0; fi--) { var f = fires[fi]; f.l -= dt; if (f.l <= 0) { fires.splice(fi, 1); continue; } if (Math.random() < .4) pool.add(mk(f.x + rnd(-f.s, f.s), f.y + rnd(-f.s * .4, f.s * .4), rnd(-14, 14), -rnd(50, 150), rnd(.4, .9), { k: 'f', h: rnd(8, 48), s: rnd(7, 16), d: .97 })); }
+        cx.globalCompositeOperation = 'lighter';
+        pool.step(dt, function (p, u) { drawP(cx, p, u); });
+        cx.globalCompositeOperation = 'source-over';
         D.forEach(function (d) {
           var tt = t - d.t0; if (tt < 0 || tt > DUR) return;
           if (!d.on) { d.on = 1; snd('whoosh'); }
-          var segs = [], i; for (i = 0; i < N; i++) segs.push(raw(d, Math.max(0, tt - i * .075)));
-          var h = segs[0], pv = raw(d, tt + .03), pq = raw(d, Math.max(0, tt - .03)), vx = pv[0] - pq[0], vy = pv[1] - pq[1];
-          if (Math.abs(vx) > .6) d.dir = vx > 0 ? 1 : -1; var dir = d.dir, ang = clamp(Math.atan2(vy, Math.max(.001, Math.abs(vx))), -.9, .9);
-          var fl = Math.sin(tt * 8 + d.ph) * .55 + .35, fx = dir * Math.cos(ang), fy = Math.sin(ang);
-          var firing = tt > 1.2 && tt < DUR - 1.2 && (((tt + d.ph * .4) % 2.6) < 1.7);
-          var mx = h[0] + fx * 34 * sc, my = h[1] + fy * 34 * sc + 4 * sc;
-          wing(d, segs[5], fl, true, dir);
-          for (i = N - 1; i >= 0; i--) {
-            var p = segs[i], r = Math.max(2.6, (13 - i * .5)) * sc; cx.fillStyle = d.c; cx.beginPath(); cx.arc(p[0], p[1], r, 0, 6.283); cx.fill();
-            cx.fillStyle = d.bl; cx.beginPath(); cx.arc(p[0], p[1] + r * .35, r * .55, 0, 6.283); cx.fill();
-            if (i % 2 === 0 && i > 0) { cx.fillStyle = d.c2; cx.beginPath(); cx.moveTo(p[0] - 3 * sc, p[1] - r + 1); cx.lineTo(p[0], p[1] - r - 8 * sc); cx.lineTo(p[0] + 3 * sc, p[1] - r + 1); cx.fill(); }
-          }
-          rider(d, segs[3], dir, tt);
-          wing(d, segs[4], fl * .9 + .1, false, dir);
-          cx.save(); cx.translate(h[0], h[1]); cx.scale(dir, 1); cx.rotate(ang);
-          cx.fillStyle = d.c; cx.beginPath(); cx.ellipse(15 * sc, 0, 23 * sc, 11 * sc, 0, 0, 6.283); cx.fill();
-          cx.fillStyle = d.c2; cx.beginPath(); cx.ellipse(firing ? 20 * sc : 17 * sc, (firing ? 10 : 6) * sc, 15 * sc, (firing ? 4.5 : 3) * sc, firing ? .35 : .1, 0, 6.283); cx.fill();
-          cx.beginPath(); cx.moveTo(-2 * sc, -9 * sc); cx.lineTo(-26 * sc, -24 * sc); cx.lineTo(4 * sc, -6 * sc); cx.fill();
-          cx.beginPath(); cx.moveTo(6 * sc, -10 * sc); cx.lineTo(-10 * sc, -26 * sc); cx.lineTo(12 * sc, -8 * sc); cx.fill();
-          cx.fillStyle = '#ffdd33'; cx.beginPath(); cx.arc(17 * sc, -4 * sc, 3.4 * sc, 0, 6.283); cx.fill(); cx.fillStyle = '#111'; cx.beginPath(); cx.arc(18 * sc, -4 * sc, 1.5 * sc, 0, 6.283); cx.fill();
-          cx.restore();
-          if (firing) {
-            for (i = 0; i < 6; i++) { var a = ang + rnd(-.17, .17), sp = rnd(320, 620) * sc; pool.add(mk(mx, my, dir * Math.cos(a) * sp + vx / .06 * .5, Math.sin(a) * sp, rnd(.35, .7), { k: 'f', h: rnd(6, 50), s: rnd(8, 18) * sc, d: .965 })); }
-            if (Math.random() < .55 && fires.length < 70) { var L2 = rnd(110, 320) * sc, qx = mx + fx * L2, qy = my + fy * L2 + rnd(0, 60) * sc; fires.push({ x: qx, y: qy, l: rnd(1.3, 2.6), s: rnd(8, 24) * sc }); scars.push({ x: qx, y: qy + 6, r: rnd(16, 40) * sc, l: rnd(2.4, 4) }); }
-          }
+          var u = tt / DUR, x = d.dir > 0 ? -sz + (W + 2 * sz) * u : W + sz - (W + 2 * sz) * u, y = H * d.y + Math.sin(tt * 1.6 + d.bob) * 10;
+          cx.save(); cx.translate(x, y); cx.scale(-d.dir, 1);   // the dragon picture faces left, so it is turned to face the way it flies
+          cx.font = sz + 'px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif'; cx.textAlign = 'center'; cx.textBaseline = 'middle';
+          cx.fillText('\uD83D\uDC09', 0, 0); cx.restore();
+          if (Math.random() < .7) pool.add(mk(x + d.dir * sz * .62, y + sz * .05, d.dir * rnd(60, 150), rnd(-30, 30), rnd(.3, .7), { k: 'f', h: rnd(8, 48), s: rnd(6, 13), d: .96 }));
         });
-        pool.step(dt, function (p, u) { drawP(cx, p, u); }); cx.globalCompositeOperation = 'source-over';
       };
     });
   });
@@ -1359,6 +1323,19 @@
     emr.hidden = true; lb.setAttribute('for', 'hmr-sub-em' + n); em.type = 'email'; em.id = 'hmr-sub-em' + n; em.setAttribute('autocomplete', 'email'); emr.appendChild(lb); emr.appendChild(em);
     b1.type = b2.type = 'button'; st.setAttribute('role', 'status'); st.setAttribute('aria-live', 'polite'); two.appendChild(b1); two.appendChild(b2);
     w.appendChild(emr); w.appendChild(two); w.appendChild(st);
+    // v6.10 (Leo, Nov 27): the mic window's buttons are "Submit anonymously", "Create a login" and "Log in"; when the visitor is logged in, one "Submit"
+    var b3 = null, b4 = null;
+    function who() { try { var u = window.HMRAuth && window.HMRAuth.user; if (u && u.email) return String(u.email); for (var i = 0; i < localStorage.length; i++) { var k = localStorage.key(i); if (k && /^sb-[a-z0-9]+-auth-token$/.test(k)) { var j = JSON.parse(localStorage.getItem(k) || '{}'); if (j && j.user && j.user.email) return String(j.user.email); } } } catch (e) { } return ''; }
+    function simpleShow() {
+      if (!o.simple) return; var inn = loggedIn();
+      b1.hidden = !inn; b1.textContent = 'Submit'; b2.hidden = inn; b3.hidden = b4.hidden = inn; two.classList.toggle('one', inn);
+    }
+    if (o.simple) {
+      w.classList.add('simple'); b3 = el('button', 'hs-btn m', 'Create a login'); b4 = el('button', 'hs-btn m', 'Log in'); b3.type = b4.type = 'button'; two.appendChild(b3); two.appendChild(b4);
+      var toLogin = function () { try { o.text(); } catch (e) { } st.textContent = 'Your words are saved here.'; try { window.HMRDock.openDash('login'); } catch (e) { } };
+      b3.addEventListener('click', toLogin); b4.addEventListener('click', toLogin);
+      simpleShow(); setInterval(simpleShow, 1500);
+    }
     function go(email) {
       var t = String(o.text() || '').trim();
       if (!t && !o.empty) { st.textContent = 'Add a few words first, or tap the microphone and talk.'; return; }
@@ -1370,6 +1347,7 @@
       });
     }
     b1.addEventListener('click', function () {
+      if (o.simple) { go(who()); return; }
       if (emr.hidden) { emr.hidden = false; st.textContent = 'Type your email, then press Submit with my email again.'; try { em.focus(); } catch (e) { } return; }
       var v = em.value.trim(); if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) { st.textContent = 'That email does not look right. Check it and try again.'; try { em.focus(); } catch (e) { } return; }
       go(v);
@@ -1522,7 +1500,7 @@
   // v6.5: the HMR button opens the HMR family experience dashboard (hmr-dash.js, same folder as this file, loaded on first press)
   var hmrBtn = mkPill('hmr-hmrbtn', 'hmr-hmr', 'ELV8: open your elevating family experience dashboard', '<span class="hmr-hmrt">ELV8</span>');
   hmrBtn.title = 'ELV8: your dashboard'; hmrBtn.setAttribute('aria-haspopup', 'dialog'); hmrBtn.setAttribute('aria-expanded', 'false'); hmrBtn.setAttribute('aria-controls', 'hmr-dash');
-  var DASHSRC = (function () { try { var u = new URL((script && script.src) || '', location.href); u.pathname = u.pathname.replace(/[^\/]*$/, 'hmr-dash.js'); u.search = '?v=6.9.1'; u.hash = ''; return u.toString(); } catch (e) { return ''; } })();
+  var DASHSRC = (function () { try { var u = new URL((script && script.src) || '', location.href); u.pathname = u.pathname.replace(/[^\/]*$/, 'hmr-dash.js'); u.search = '?v=6.10.0'; u.hash = ''; return u.toString(); } catch (e) { return ''; } })();
   var dashState = 0, dashWait = [];   // 0 not loaded, 1 loading, 2 ready, 3 failed
   function loadDash(cb) {
     if (window.HMRDash) { dashState = 2; if (cb) cb(); return; }
@@ -1763,7 +1741,7 @@
   function spNotice(on) {
     if (!spNote) { spNote = el('div', 'hmr-spnote'); spNote.setAttribute('data-hmr-ui', ''); spNote.setAttribute('role', 'status'); spNote.hidden = true; doc.body.appendChild(spNote); }
     spNote.textContent = 'Recording. Your words are filling the box. You can leave this page and move around the site; the box keeps your words.';
-    spNote.hidden = !on;
+    spNote.hidden = true;   // v6.10: the window with the words is the only sign
   }
   function micHelp() {
     var ua = navigator.userAgent || '', ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && (navigator.maxTouchPoints || 0) > 1), and = /Android/.test(ua);
@@ -1858,6 +1836,7 @@
     handle.addEventListener('pointerup', end); handle.addEventListener('pointercancel', end);
   }
   function spDragHint() {
+    return;   // v6.10: no extra lines in the mic window
     if (!sp || lsGet(SPDRAG) === '1' || sp.el.querySelector('.hs-dhint')) return;
     var h = el('p', 'hs-dhint', 'You can grab this and move it anywhere: drag the top line.'), hd = sp.el.querySelector('.hd');
     if (hd && hd.nextSibling) sp.el.insertBefore(h, hd.nextSibling); else sp.el.appendChild(h);
@@ -1892,7 +1871,8 @@
     s.appendChild(sp.pick);
     sp.spotEl = el('p', 'hs-spot'); sp.spotEl.hidden = true; s.appendChild(sp.spotEl);
     sp.go = el('p', 'hs-go', 'Press the record button and begin speaking'); s.appendChild(sp.go);
-    sp.live = el('div', 'hs-live'); sp.ta = el('textarea'); sp.ta.id = 'hmr-sp-text'; sp.ta.rows = 2; sp.ta.setAttribute('autocomplete', 'off'); sp.ta.setAttribute('aria-label', 'What we heard. You can edit it.'); sp.ta.placeholder = SR ? 'Your words show up here as you talk' : 'Type here';
+    sp.live = el('div', 'hs-live'); sp.ta = el('textarea'); sp.ta.id = 'hmr-sp-text'; sp.ta.rows = 2; sp.ta.setAttribute('autocomplete', 'off'); sp.ta.setAttribute('aria-label', 'What we heard. You can edit it.'); sp.ta.placeholder = SR ? 'Your words show up here as you talk. Tap here to edit.' : 'Type here';
+    sp.ta.addEventListener('focus', function () { s.classList.add('edit'); }); sp.ta.addEventListener('blur', function () { setTimeout(function () { if (doc.activeElement !== sp.ta) s.classList.remove('edit'); }, 250); });
     var tw = el('div', 'hmr-tw'); tw.appendChild(sp.ta);
     sp.ctl = el('button', 'hmr-tmic'); sp.ctl.type = 'button'; sp.ctl.innerHTML = MICSVG(false); sp.ctl.setAttribute('aria-label', 'Start recording'); sp.ctl.title = 'Start recording'; tw.appendChild(sp.ctl);
     sp.live.appendChild(tw); s.appendChild(sp.live);
@@ -1901,6 +1881,7 @@
     sp.ctl.addEventListener('click', function () { if (sp.want) spPause(); else spStart(); });
     sp.ta.addEventListener('input', function () { sp.committed = sp.ta.value; sp.ign = sp.raw; sp.sess = ''; saveSpeak(); });
     sp.sub = submitPair({
+      simple: true,
       text: function () { spPause(); saveSpeak(); var t = sp.ta.value.trim(); if (!t && !TOUCH) { try { sp.ta.focus({ preventScroll: true }); } catch (e) { } } return t; },
       kind: 'speak',
       details: function () { return sp.spot ? { spot: sp.spot } : undefined; },
@@ -1911,7 +1892,6 @@
       }
     });
     s.appendChild(sp.sub.el);
-    s.appendChild(el('p', 'hs-free', FREE_LINE));
     s.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.stopPropagation(); closeSpeak(true, true); } });
     if (!SR) { sp.dot.hidden = sp.tm.hidden = sp.ctl.hidden = true; sp.state.textContent = 'Speak here'; sp.state.hidden = false; }
     sp.timer = setInterval(spTick, 250);
@@ -1931,8 +1911,7 @@
     //   The record button in the box and "Talk about the whole page" start it too.
     if (!sp.want) spSay('');
     sp.long.textContent = loggedIn() ? 'Talk as long as you like.' : 'Talk for up to 2 minutes, or as long as you like with a free login.';
-    if (fromTap && !sp.want) spPick(true);
-    spDragHint();
+    if (fromTap && !sp.want) { sp.spot = null; spStart(); }   // v6.10 (Leo, Nov 27): press the mic and it records; no extra step
   }
   function spPick(on) {
     if (!sp) return; sp.picking = !!on; sp.pick.hidden = !on; sp.el.classList.toggle('picking', !!on); root.classList.toggle('hmr-picking', !!on);
@@ -3018,6 +2997,13 @@
     'html .hmr-spk{left:50%!important;right:auto!important;transform:translateX(-50%)!important;bottom:calc(' + BASE + ' + var(--hmr-c) + 10px)!important;width:min(460px,calc(100vw - 16px))!important;max-width:calc(100vw - 16px)!important;max-height:max(30vh,200px)!important;padding:8px 10px!important;border-radius:14px;overflow:auto;z-index:99996}' +
     'html .hmr-spk.help{max-height:min(60vh,420px)!important}' +
     'html .hmr-spk{max-height:min(66vh,480px)!important}' +
+    // v6.10 (Leo, Nov 27): the mic window is only the words and the buttons. On phones it is the bottom third of the screen; tap the words and it grows for editing.
+    '.hmr-spk .hs-why2,.hmr-spk .hs-long,.hmr-spk .hs-fc,.hmr-spk .hs-tip,.hmr-spk .hs-go,.hmr-spk .hs-pick,.hmr-spk .hs-dhint,.hmr-spk .hs-heart,.hmr-spk .hs-ttl,.hmr-spk .hs-spot,.hmr-spnote{display:none!important}' +
+    '.hmr-spk:not(.help){display:flex;flex-direction:column}.hmr-spk[hidden]{display:none!important}.hmr-spk .hd{order:-1;position:absolute;top:4px;right:6px;margin:0}.hmr-spk .hs-row{min-height:30px;padding-right:44px}' +
+    '.hmr-spk .hs-live{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}.hmr-spk .hs-live .hmr-tw{flex:1 1 auto;min-height:0;display:flex}.hmr-spk .hs-live textarea{flex:1 1 auto;min-height:64px!important;height:auto;resize:none}' +
+    '.hmr-sub.simple .hs-two{grid-template-columns:1.4fr 1fr 1fr!important;gap:6px;margin-top:6px}.hmr-sub.simple .hs-two.one{grid-template-columns:1fr!important}.hmr-sub.simple .hs-btn{min-height:44px;font-size:13px;padding:4px 6px}.hmr-sub.simple .hs-btn[hidden]{display:none!important}.hmr-sub.simple .hs-st{min-height:0;margin:3px 0 0}' +
+    '@media (max-width:719px){html .hmr-spk{left:0!important;right:0!important;transform:none!important;bottom:0!important;width:auto!important;max-width:none!important;height:34vh!important;height:34dvh!important;min-height:210px;max-height:none!important;border-radius:16px 16px 0 0!important;border-width:2px 0 0!important;padding:8px 10px calc(8px + env(safe-area-inset-bottom,0px))!important;z-index:100002!important;transition:height .2s}html .hmr-spk.edit{height:62vh!important;height:62dvh!important}html .hmr-spk.help{height:auto!important;max-height:80vh!important}}' +
+    '@media (min-width:720px){html .hmr-spk{height:300px;max-height:60vh!important}}' +
     '.hmr-spk .hd .hs-heart{flex:none;font-size:16px}.hmr-spk .hd .hs-ttl{flex:0 1 auto;white-space:normal;line-height:1.2;font-size:14px;font-weight:800}' +
     '.hmr-spk .hs-row{display:flex;align-items:center;gap:8px;margin:0 0 4px;font-size:12px}' +
     '.hmr-spk .hs-why2{position:relative;margin:2px 0 6px;padding:6px 8px;border-radius:8px;background:#f1f5ff;font-size:12.5px;line-height:1.35;color:#222}.hmr-spk .hs-why2 p{margin:0 0 4px}.hmr-spk .hs-wx{min-height:32px;padding:0 8px;border:1px solid #9aa4b5;border-radius:999px;background:#fff;color:#222;font-size:12px;font-weight:700;cursor:pointer;touch-action:manipulation}' +
@@ -3117,7 +3103,7 @@
         var rb = el('div', 'hmr-tier'); rb.setAttribute('data-hmr-tier-ribbon', 'family');
         var ra = el('a', 'hmr-tl'); ra.target = '_blank'; ra.rel = 'noopener'; ra.href = 'https://elevat.ing/';
         var rs = el('span', 'st', '\uD83D\uDC9B'); rs.setAttribute('aria-hidden', 'true'); ra.appendChild(rs); ra.appendChild(doc.createTextNode('elevat.ing family of websites'));
-        rb.appendChild(ra); rb.appendChild(el('div', 'hmr-free', FREE_LINE)); doc.body.appendChild(rb);
+        rb.appendChild(ra); doc.body.appendChild(rb);   // v6.10: no always-free line (Leo: it looks like an ad)
       }
     } catch (e) { }
     dock.id = 'hmr-dock'; doc.body.appendChild(dock);
@@ -3335,7 +3321,7 @@
     // v6.9 (Leo, Nov 26): the default is ELV8 with its four arrows and the mic, and no browser back or forward buttons.
     //   Where the four arrows are around ELV8 there are no back / forward buttons; the thumb layouts drop the four arrows and keep a simple back and forward,
     //   with React and the mic between them. The old Reader layout is the new default, so a saved 'read' becomes 'joy'.
-    function lget() { try { var v = localStorage.getItem(LKEY) || 'joy'; if (v === 'read') v = 'joy'; for (var i = 0; i < LAYS.length; i++) if (LAYS[i].id === v) return v; } catch (e) { } return 'joy'; }
+    function lget() { return 'joyr'; }   // v6.10 (Leo, Nov 27): one standard on every site: React left, ELV8 middle, mic right. No layout choices.
     function lset(v) { try { if (v === 'joy') localStorage.removeItem(LKEY); else localStorage.setItem(LKEY, v); } catch (e) { } }
     function lay(id) { for (var i = 0; i < LAYS.length; i++) if (LAYS[i].id === id) return LAYS[i]; return LAYS[0]; }
     var cur = lget();
@@ -3363,7 +3349,7 @@
 
     var css = el('style'); css.id = 'hmr-v68-css';
     css.textContent = [
-      '.hmr-dock{--hmr-pw:116px}@media (max-width:480px){.hmr-dock{--hmr-pw:104px}}@media (max-width:374px){.hmr-dock{--hmr-pw:90px}}',
+      'html,.hmr-dock{--hmr-pw:116px}@media (max-width:480px){html,.hmr-dock{--hmr-pw:104px}}@media (max-width:374px){html,.hmr-dock{--hmr-pw:90px}}',
       // joystick (default): [space] ELV8 with four arrows [space] Mic; no back, forward or React. Equal side columns keep ELV8 centred.
       'html.hmr-lay-joy .hmr-dock,html.hmr-lay-joyr .hmr-dock{grid-template-columns:var(--hmr-c) minmax(0,1fr) auto minmax(0,1fr) var(--hmr-c)!important}',
       'html.hmr-lay-joy .hmr-dock>#hmr-pad,html.hmr-lay-joyr .hmr-dock>#hmr-pad{grid-column:3}html.hmr-lay-joy .hmr-dock>#hmr-speak,html.hmr-lay-joyr .hmr-dock>#hmr-speak{grid-column:5}',
@@ -3393,7 +3379,7 @@
       '.hmr-dock>#hmr-speak{width:var(--hmr-c)!important;height:var(--hmr-c)!important;background:conic-gradient(from 210deg,#e0307a,#f59e0b,#22c55e,#06b6d4,#8b5cf6,#e0307a)!important}.hmr-dock>#hmr-speak svg{width:24px;height:24px}',
       '.hmr-dock>#hmr-speak[aria-expanded="true"]{background:linear-gradient(135deg,#dc2626,#7f1d1d)!important}',
       // panels open above the taller joystick
-      'html:is(.hmr-lay-joy,.hmr-lay-joyr) .hmr-fbp,html:is(.hmr-lay-joy,.hmr-lay-joyr) .hmr-spk,html:is(.hmr-lay-joy,.hmr-lay-joyr) .hmr-fzm{bottom:calc(' + BASE + ' + var(--hmr-pw) + 8px)!important}',
+      'html:is(.hmr-lay-joy,.hmr-lay-joyr) .hmr-rxp,html:is(.hmr-lay-joy,.hmr-lay-joyr) .hmr-fbp,html:is(.hmr-lay-joy,.hmr-lay-joyr) .hmr-fzm{bottom:calc(' + BASE + ' + var(--hmr-pw) + 8px)!important}@media (min-width:720px){html:is(.hmr-lay-joy,.hmr-lay-joyr) .hmr-spk{bottom:calc(' + BASE + ' + var(--hmr-pw) + 8px)!important}}',
       'html:is(.hmr-lay-joy,.hmr-lay-joyr) .hmr-spacer{height:130px!important}',
       // wider dashboard and studio on wide screens
       '@media (min-width:720px){.hmrd{width:min(680px,calc(100vw - 32px))!important}html:is(.hmr-lay-joy,.hmr-lay-joyr) .hmrd:not(.hmrd-moved){bottom:calc(' + BASE + ' + 132px)!important}html:is(.hmr-lay-joy,.hmr-lay-joyr) .hmrd-toast{bottom:calc(' + BASE + ' + 138px)!important}}',
@@ -3513,13 +3499,14 @@
 
     // ---- layouts and the shuffle
     function applyLayout(id, say) {
-      cur = id; lset(id); setCls();
+      id = 'joyr'; say = false; cur = id; setCls();
       try { if (window.__hmrResetButtons) window.__hmrResetButtons(); } catch (e) { }
       if (say) toast('Button layout: ' + lay(id).name + '. ' + lay(id).hint + '.', null, 4000);
     }
-    function shuffle() { var i = 0; for (var k = 0; k < LAYS.length; k++) if (LAYS[k].id === cur) i = k; applyLayout(LAYS[(i + 1) % LAYS.length].id, true); }
+    function shuffle() { }   // v6.10: no Shuffle
     // dashboard: a "Shuffle buttons" action in the Right now row, and the layouts in Your settings
     function addDashItems() {
+      return;   // v6.10: no Shuffle button and no layout list in the dashboard
       try {
         var row = doc.querySelector('.hmrd-row');
         if (row && !row.querySelector('[data-k="btn-shuffle"]')) {
@@ -3562,7 +3549,7 @@
     stopFunsies: function () { stopFunsies(true); }, log: readLog, openReact: openRx, closeReact: function () { closeRx(true); },
     send: send, mailto: mailSelf, openFeedback: function (o) { openSheet('feedback', o); }, openLost: function () { openSheet('lost'); }, closeFeedback: function () { closeSheet(true); }, openSpeak: openSpeak, closeSpeak: function () { closeSpeak(true, true); },
     submitBox: function (o) { o = o || {}; return submitPair({ text: function () { try { return String(o.text ? o.text() : ''); } catch (e) { return ''; } }, kind: o.kind || 'ratings', onSent: o.onSent }).el; },   // v6.9: Submit with my email / Submit anonymously, for any page part (the design pickers use it)
-    highlights: hlList, clearHighlights: clearAllHighlights, version: 6.9, openDash: function (v) { loadDash(function () { window.HMRDash.open(v); }); }, openStudio: function (t) { loadDash(function () { window.HMRDash.studio(t); }); }, closeOthers: closeOthers, designPanel: function () { return buildDx(null); }, design: { theme: function (s) { return genTheme(s); }, palettes: function () { return PALS; }, famOf: famOfSeed, seedIn: seedIn, show: function (s) { goTheme('g:' + s); }, hide: function () { goTheme(defaultId()); }, stats: function () { return gen ? { ms: gen.ms || 0, frames: gen.frames || 0, id: gen.t && gen.t.id, layouts: LAYS.length, palettes: PALS.length, fonts: FONTS.length, cards: CARDS.length } : null; }, count: function (fam) { return LAYS.length * PALS.length * FONTS.length * CARDS.length * 5 * DENKEYS.length * RADII.length * ACCS.length; } }, themes: function () { return allThemes().map(function (t) { return { id: t.id, name: t.name, genre: GENRES[t.gi].n, b: t.b, bi: t.bi, f: t.f, h: t.h, l: t.l, c: t.c }; }); }
+    highlights: hlList, clearHighlights: clearAllHighlights, version: 6.91, openDash: function (v) { loadDash(function () { window.HMRDash.open(v); }); }, openStudio: function (t) { loadDash(function () { window.HMRDash.studio(t); }); }, closeOthers: closeOthers, designPanel: function () { return buildDx(null); }, design: { theme: function (s) { return genTheme(s); }, palettes: function () { return PALS; }, famOf: famOfSeed, seedIn: seedIn, show: function (s) { goTheme('g:' + s); }, hide: function () { goTheme(defaultId()); }, stats: function () { return gen ? { ms: gen.ms || 0, frames: gen.frames || 0, id: gen.t && gen.t.id, layouts: LAYS.length, palettes: PALS.length, fonts: FONTS.length, cards: CARDS.length } : null; }, count: function (fam) { return LAYS.length * PALS.length * FONTS.length * CARDS.length * 5 * DENKEYS.length * RADII.length * ACCS.length; } }, themes: function () { return allThemes().map(function (t) { return { id: t.id, name: t.name, genre: GENRES[t.gi].n, b: t.b, bi: t.bi, f: t.f, h: t.h, l: t.l, c: t.c }; }); }
   };
 })();
 
