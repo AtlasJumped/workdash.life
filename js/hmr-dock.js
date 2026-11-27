@@ -177,7 +177,7 @@
   // ------------------------------------------------------------------ React: log, target, panel
   var LOGKEY = 'hmr-react-log-v1', TIPKEY = 'hmr-react-tip-off';
   var NEG = { 'Dislike': 1, 'Mad': 1, 'Sad': 1, 'Worried': 1, 'Afraid': 1, 'Confused': 1, 'Skeptical': 1, 'Disappointed': 1, 'Frustrated': 1, 'Burn it all': 1, 'Dragons burn it all': 1 };
-  var DEFAULT_EMOTIONS = ['Mad', 'Excited', 'Sad', 'Happy', 'Worried', 'Hopeful', 'Confused', 'Curious', 'Frustrated', 'Inspired', 'Disappointed', 'Grateful', 'Skeptical', 'Amazed', 'Dragons', 'Burn it all'];
+  var DEFAULT_EMOTIONS = ['Mad', 'Excited', 'Sad', 'Happy', 'Worried', 'Hopeful', 'Confused', 'Curious', 'Frustrated', 'Inspired', 'Disappointed', 'Grateful', 'Skeptical', 'Amazed', 'Burn it all', 'Dragons'];   // two columns: the negative reaction of each pair on the left, the positive one on the right
   var EMOJI = { 'Like': '👍', 'Dislike': '👎', 'Mad': '😠', 'Excited': '🤩', 'Sad': '😢', 'Happy': '😊', 'Worried': '😟', 'Hopeful': '🤞', 'Confused': '😕', 'Curious': '🧐', 'Frustrated': '😤', 'Inspired': '💡', 'Disappointed': '😞', 'Grateful': '🙏', 'Skeptical': '🤨', 'Amazed': '😲', 'Afraid': '😨', 'Dragons': '🐉', 'Burn it all': '🔥', 'Dragons burn it all': '🐉' };
   var REACT_FX = { 'Dragons': 'dragons', 'Dragons burn it all': 'dragons', 'Burn it all': 'burn' };   // chips that run one of the Funsies page animations
   var panel = null, stEl = null, aim = false, target = null, markEl = null, tipShown = false, rxLastName = '';
